@@ -17,6 +17,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { journalService } from '../../services/journalService';
 import { JournalEntry, MoodType } from '../../types/journal';
 
+// Define valid icon names for mood icons
+type MoodIconName =
+    | 'happy-outline'
+    | 'sad-outline'
+    | 'alert-circle-outline'
+    | 'leaf-outline'
+    | 'heart-outline'
+    | 'eye-outline'
+    | 'rocket-outline'
+    | 'bed-outline'
+    | 'flash-outline'
+    | 'ellipse-outline';
+
+// Define valid icon names for other icons used in this component
+type JournalIconName =
+    | MoodIconName
+    | 'journal-outline'
+    | 'add'
+    | 'trash-outline';
+
 export default function JournalScreen() {
     const theme = useTheme();
     const { user } = useAuth();
@@ -161,8 +181,9 @@ export default function JournalScreen() {
         );
     };
 
-    const getMoodIcon = (mood: MoodType) => {
-        const moodIcons = {
+    // FIXED: Properly typed mood icons
+    const getMoodIcon = (mood: MoodType): MoodIconName => {
+        const moodIcons: Record<MoodType, MoodIconName> = {
             happy: 'happy-outline',
             sad: 'sad-outline',
             anxious: 'alert-circle-outline',
