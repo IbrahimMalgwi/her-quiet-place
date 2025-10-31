@@ -1,35 +1,135 @@
-import { Tabs } from 'expo-router';
+// app/(tabs)/_layout.tsx
 import React from 'react';
+import { Tabs } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
+import { ActivityIndicator, View, Text } from 'react-native';
+import { useTheme } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function TabsLayout() {
+    const { user, loading } = useAuth();
+    const theme = useTheme();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+    if (loading) {
+        return (
+            <View style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: theme.colors.background
+            }}>
+                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                <Text style={{
+                    marginTop: theme.Spacing.md,
+                    color: theme.colors.text,
+                    fontSize: 16
+                }}>
+                    Loading...
+                </Text>
+            </View>
+        );
+    }
 
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
+    // If no user, the index screen will handle redirect to auth
+    if (!user) {
+        return null; // Let the index screen handle the redirect
+    }
+
+    return (
+        <Tabs
+            screenOptions={{
+                tabBarActiveTintColor: theme.colors.accentPrimary,
+                tabBarInactiveTintColor: theme.colors.textSecondary,
+                tabBarStyle: {
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderTopColor: theme.colors.border,
+                    borderTopWidth: 1,
+                },
+                headerStyle: {
+                    backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.text,
+                headerTitleStyle: {
+                    fontWeight: '600',
+                },
+            }}
+        >
+            <Tabs.Screen
+                name="index"
+                options={{
+                    href: null, // Hide from tabs since we're using HomeScreen
+                }}
+            />
+            <Tabs.Screen
+                name="HomeScreen"
+                options={{
+                    title: 'Daily',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "home" : "home-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'Daily Strength',
+                }}
+            />
+            <Tabs.Screen
+                name="JournalScreen"
+                options={{
+                    title: 'Journal',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "book" : "book-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'My Journal',
+                }}
+            />
+            <Tabs.Screen
+                name="PrayerRoomScreen"
+                options={{
+                    title: 'Prayer',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "heart" : "heart-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'Prayer Room',
+                }}
+            />
+            <Tabs.Screen
+                name="AudioRoomScreen"
+                options={{
+                    title: 'Audio',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "musical-notes" : "musical-notes-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'Audio Comforts',
+                }}
+            />
+            <Tabs.Screen
+                name="ProfileScreen"
+                options={{
+                    title: 'Profile',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "person" : "person-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'My Profile',
+                }}
+            />
+        </Tabs>
+    );
 }

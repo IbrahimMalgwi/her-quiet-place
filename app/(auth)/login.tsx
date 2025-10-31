@@ -1,0 +1,257 @@
+// app/(auth)/login.tsx
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+} from 'react-native';
+import { useTheme } from '../../constants/theme';
+import { Link, router, Redirect } from 'expo-router';
+
+export default function LoginScreen() {
+    const { signIn, user, loading: authLoading } = useAuth();
+    const theme = useTheme();
+
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Redirect if user is already authenticated
+    if (user && !authLoading) {
+        return <Redirect href="/(tabs)" />;
+    }
+
+    // Show loading while checking auth state
+    if (authLoading) {
+        return (
+            <View style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: theme.colors.background
+            }}>
+                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
+                    Checking authentication...
+                </Text>
+            </View>
+        );
+    }
+
+    // In your login.tsx - update the handleLogin function
+    const handleLogin = async () => {
+        if (!email || !password) {
+            setError('Please fill in all fields');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error } = await signIn(email, password);
+
+            if (error) {
+                setError(error.message);
+            } else {
+                console.log('Login successful');
+                // The auth state change will automatically redirect to tabs
+                // No need for manual navigation
+            }
+        } catch (err) {
+            setError('An unexpected error occurred');
+            console.error('Login error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const clearError = () => {
+        if (error) setError(null);
+    };
+
+    return (
+        <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: theme.colors.background }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView
+                contentContainerStyle={{
+                    flexGrow: 1,
+                    justifyContent: 'center',
+                    padding: theme.Spacing.xl // This should work now
+                }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Header Section */}
+                <View style={{
+                    marginBottom: theme.Spacing.xxl,
+                    alignItems: 'center'
+                }}>
+                    <Text style={{
+                        fontSize: 32,
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        color: theme.colors.text,
+                        marginBottom: theme.Spacing.sm
+                    }}>
+                        Welcome Back
+                    </Text>
+                    <Text style={{
+                        fontSize: 16,
+                        textAlign: 'center',
+                        color: theme.colors.textSecondary,
+                        lineHeight: 22
+                    }}>
+                        Sign in to continue your spiritual journey
+                    </Text>
+                </View>
+
+                {/* Error Message */}
+                {error && (
+                    <View style={{
+                        backgroundColor: theme.colors.error + '20',
+                        padding: theme.Spacing.md,
+                        borderRadius: theme.BorderRadius.md,
+                        marginBottom: theme.Spacing.lg,
+                        borderLeftWidth: 4,
+                        borderLeftColor: theme.colors.error,
+                    }}>
+                        <Text style={{
+                            color: theme.colors.error,
+                            fontSize: 14,
+                            lineHeight: 18
+                        }}>
+                            {error}
+                        </Text>
+                    </View>
+                )}
+
+                {/* Form Section */}
+                <View style={{ gap: theme.Spacing.lg }}>
+                    {/* Email Input */}
+                    <View>
+                        <Text style={{
+                            color: theme.colors.text,
+                            fontSize: 16,
+                            marginBottom: theme.Spacing.sm,
+                            fontWeight: '500'
+                        }}>
+                            Email
+                        </Text>
+                        <TextInput
+                            style={theme.input}
+                            placeholder="Enter your email"
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={email}
+                            onChangeText={(text) => {
+                                setEmail(text);
+                                clearError();
+                            }}
+                            autoCapitalize="none"
+                            autoComplete="email"
+                            keyboardType="email-address"
+                            editable={!loading}
+                            returnKeyType="next"
+                        />
+                    </View>
+
+                    {/* Password Input */}
+                    <View>
+                        <Text style={{
+                            color: theme.colors.text,
+                            fontSize: 16,
+                            marginBottom: theme.Spacing.sm,
+                            fontWeight: '500'
+                        }}>
+                            Password
+                        </Text>
+                        <TextInput
+                            style={[
+                                theme.input,
+                                error ? { borderColor: theme.colors.error } : {}
+                            ]}
+                            placeholder="Enter your password"
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={password}
+                            onChangeText={(text) => {
+                                setPassword(text);
+                                clearError();
+                            }}
+                            secureTextEntry
+                            autoCapitalize="none"
+                            editable={!loading}
+                            returnKeyType="done"
+                            onSubmitEditing={handleLogin}
+                        />
+                    </View>
+
+                    {/* Login Button */}
+                    <TouchableOpacity
+                        style={[
+                            theme.button,
+                            loading && { opacity: 0.7 },
+                            { marginTop: theme.Spacing.md }
+                        ]}
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color={theme.colors.textInverse} size="small" />
+                        ) : (
+                            <Text style={theme.buttonText}>
+                                Sign In
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Sign Up Link */}
+                    <View style={[theme.row, {
+                        justifyContent: 'center',
+                        marginTop: theme.Spacing.xl
+                    }]}>
+                        <Text style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: 14
+                        }}>
+                            Don't have an account?{' '}
+                        </Text>
+                        <Link href="/(auth)/signup" asChild>
+                            <TouchableOpacity>
+                                <Text style={{
+                                    color: theme.colors.accentPrimary,
+                                    fontSize: 14,
+                                    fontWeight: '600'
+                                }}>
+                                    Sign Up
+                                </Text>
+                            </TouchableOpacity>
+                        </Link>
+                    </View>
+                </View>
+
+                {/* App Info Footer */}
+                <View style={{
+                    marginTop: theme.Spacing.xxl,
+                    alignItems: 'center'
+                }}>
+                    <Text style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 12,
+                        textAlign: 'center'
+                    }}>
+                        Her Quiet Place - Your spiritual sanctuary
+                    </Text>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+    );
+}
