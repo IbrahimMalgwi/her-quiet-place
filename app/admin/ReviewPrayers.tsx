@@ -15,23 +15,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-
-interface Prayer {
-    id: string;
-    user_id: string;
-    user_email: string;
-    user_name?: string;
-    title: string;
-    content: string;
-    category: string;
-    is_public: boolean;
-    is_approved: boolean;
-    created_at: string;
-    likes_count: number;
-    comments_count: number;
-    approved_at?: string;
-    approved_by?: string;
-}
+import { adminPrayerService, AdminPrayer } from '../../services/adminPrayerService';
 
 // Helper functions for proper typing
 const createInfoRowStyle = (theme: any): ViewStyle => ({
@@ -90,11 +74,11 @@ const createLabelStyle = (theme: any): TextStyle => ({
 
 export default function ReviewPrayers() {
     const theme = useTheme();
-    const [prayers, setPrayers] = useState<Prayer[]>([]);
+    const [prayers, setPrayers] = useState<AdminPrayer[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
-    const [selectedPrayer, setSelectedPrayer] = useState<Prayer | null>(null);
+    const [selectedPrayer, setSelectedPrayer] = useState<AdminPrayer | null>(null);
     const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
@@ -106,72 +90,12 @@ export default function ReviewPrayers() {
     const loadPrayers = async () => {
         try {
             setLoading(true);
-            // Simulate API call
-            setTimeout(() => {
-                setPrayers([
-                    {
-                        id: '1',
-                        user_id: 'user1',
-                        user_email: 'user1@example.com',
-                        user_name: 'John Doe',
-                        title: 'Prayer for Healing',
-                        content: 'Heavenly Father, I come before you today asking for your healing hand to touch my body. Please restore my health and give me strength during this difficult time.',
-                        category: 'healing',
-                        is_public: true,
-                        is_approved: false,
-                        created_at: '2024-03-20T10:30:00Z',
-                        likes_count: 5,
-                        comments_count: 2,
-                    },
-                    {
-                        id: '2',
-                        user_id: 'user2',
-                        user_email: 'user2@example.com',
-                        user_name: 'Jane Smith',
-                        title: 'Strength for Family',
-                        content: 'Lord, please give my family strength and unity as we face challenges together. Help us to support each other and grow closer through these trials.',
-                        category: 'family',
-                        is_public: true,
-                        is_approved: false,
-                        created_at: '2024-03-19T14:20:00Z',
-                        likes_count: 12,
-                        comments_count: 4,
-                    },
-                    {
-                        id: '3',
-                        user_id: 'user3',
-                        user_email: 'user3@example.com',
-                        user_name: 'Mike Johnson',
-                        title: 'Guidance in Decisions',
-                        content: 'Dear God, I seek your wisdom and guidance as I make important decisions in my life. Please show me the path you have planned for me.',
-                        category: 'guidance',
-                        is_public: true,
-                        is_approved: true,
-                        created_at: '2024-03-18T09:15:00Z',
-                        likes_count: 8,
-                        comments_count: 3,
-                        approved_at: '2024-03-18T11:30:00Z',
-                        approved_by: 'admin@herquietplace.com',
-                    },
-                    {
-                        id: '4',
-                        user_id: 'user4',
-                        user_email: 'user4@example.com',
-                        title: 'Peace in Anxiety',
-                        content: 'Father, in moments of anxiety and worry, I ask for your peace that surpasses all understanding. Calm my heart and mind.',
-                        category: 'peace',
-                        is_public: false,
-                        is_approved: false,
-                        created_at: '2024-03-17T16:45:00Z',
-                        likes_count: 3,
-                        comments_count: 1,
-                    }
-                ]);
-                setLoading(false);
-            }, 1000);
+            const prayersData = await adminPrayerService.getPrayers();
+            setPrayers(prayersData);
         } catch (error) {
             console.error('Error loading prayers:', error);
             Alert.alert('Error', 'Failed to load prayers');
+        } finally {
             setLoading(false);
         }
     };
@@ -181,7 +105,7 @@ export default function ReviewPrayers() {
         loadPrayers();
     };
 
-    const openPrayerDetails = (prayer: Prayer) => {
+    const openPrayerDetails = (prayer: AdminPrayer) => {
         setSelectedPrayer(prayer);
         setRejectionReason('');
         setModalVisible(true);
@@ -189,9 +113,10 @@ export default function ReviewPrayers() {
 
     // Filter prayers based on current filter
     const filteredPrayers = prayers.filter(prayer => {
-        if (filter === 'pending') return !prayer.is_approved;
-        if (filter === 'approved') return prayer.is_approved;
-        return false; // For rejected prayers (you might want to add a rejected status)
+        if (filter === 'pending') return prayer.status === 'pending';
+        if (filter === 'approved') return prayer.status === 'approved';
+        if (filter === 'rejected') return prayer.status === 'rejected';
+        return false;
     });
 
     const formatDate = (dateString: string) => {
@@ -218,32 +143,26 @@ export default function ReviewPrayers() {
         return colors[category] || theme.colors.accentPrimary;
     };
 
-    const getStatusColor = (prayer: Prayer) => {
-        if (prayer.is_approved) return theme.colors.success;
+    const getStatusColor = (prayer: AdminPrayer) => {
+        if (prayer.status === 'approved') return theme.colors.success;
+        if (prayer.status === 'rejected') return theme.colors.error;
         return theme.colors.warning;
     };
 
-    const getStatusText = (prayer: Prayer) => {
-        if (prayer.is_approved) return 'Approved';
+    const getStatusText = (prayer: AdminPrayer) => {
+        if (prayer.status === 'approved') return 'Approved';
+        if (prayer.status === 'rejected') return 'Rejected';
         return 'Pending Review';
     };
 
-    const approvePrayer = async (prayer: Prayer) => {
+    const approvePrayer = async (prayer: AdminPrayer) => {
         setActionLoading(prayer.id);
         try {
-            // Simulate API call
-            setTimeout(() => {
-                const updatedPrayer = {
-                    ...prayer,
-                    is_approved: true,
-                    approved_at: new Date().toISOString(),
-                    approved_by: 'admin@herquietplace.com'
-                };
-                setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
-                setActionLoading(null);
-                setModalVisible(false);
-                Alert.alert('Success', 'Prayer approved and published to community!');
-            }, 500);
+            const updatedPrayer = await adminPrayerService.approvePrayer(prayer.id);
+            setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
+            setActionLoading(null);
+            setModalVisible(false);
+            Alert.alert('Success', 'Prayer approved and published to community!');
         } catch (error) {
             console.error('Error approving prayer:', error);
             Alert.alert('Error', 'Failed to approve prayer');
@@ -251,7 +170,7 @@ export default function ReviewPrayers() {
         }
     };
 
-    const rejectPrayer = async (prayer: Prayer) => {
+    const rejectPrayer = async (prayer: AdminPrayer) => {
         if (!rejectionReason.trim()) {
             Alert.alert('Error', 'Please provide a reason for rejection');
             return;
@@ -259,18 +178,11 @@ export default function ReviewPrayers() {
 
         setActionLoading(prayer.id);
         try {
-            // Simulate API call
-            setTimeout(() => {
-                const updatedPrayer = {
-                    ...prayer,
-                    is_approved: false,
-                    is_public: false // Make private when rejected
-                };
-                setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
-                setActionLoading(null);
-                setModalVisible(false);
-                Alert.alert('Success', 'Prayer rejected successfully');
-            }, 500);
+            const updatedPrayer = await adminPrayerService.rejectPrayer(prayer.id, rejectionReason);
+            setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
+            setActionLoading(null);
+            setModalVisible(false);
+            Alert.alert('Success', 'Prayer rejected successfully');
         } catch (error) {
             console.error('Error rejecting prayer:', error);
             Alert.alert('Error', 'Failed to reject prayer');
@@ -278,16 +190,17 @@ export default function ReviewPrayers() {
         }
     };
 
-    const makePrivate = async (prayer: Prayer) => {
+    // In ReviewPrayers.tsx - replace the makePrivate function
+    const makePrivate = async (prayer: AdminPrayer) => {
         setActionLoading(prayer.id);
         try {
-            // Simulate API call
-            setTimeout(() => {
-                const updatedPrayer = { ...prayer, is_public: false };
-                setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
-                setActionLoading(null);
-                Alert.alert('Success', 'Prayer made private');
-            }, 500);
+            const updatedPrayer = await adminPrayerService.updatePrayer(prayer.id, {
+                status: 'rejected', // Rejecting makes it private
+                rejection_reason: 'Made private by admin'
+            });
+            setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
+            setActionLoading(null);
+            Alert.alert('Success', 'Prayer made private');
         } catch (error) {
             console.error('Error making prayer private:', error);
             Alert.alert('Error', 'Failed to update prayer visibility');
@@ -295,10 +208,10 @@ export default function ReviewPrayers() {
         }
     };
 
-    const deletePrayer = async (prayer: Prayer) => {
+    const deletePrayer = async (prayer: AdminPrayer) => {
         Alert.alert(
             'Delete Prayer',
-            `Are you sure you want to delete "${prayer.title}"? This action cannot be undone.`,
+            `Are you sure you want to delete "${prayer.title}"?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -313,13 +226,11 @@ export default function ReviewPrayers() {
     const confirmDelete = async (prayerId: string) => {
         setActionLoading(prayerId);
         try {
-            // Simulate API call
-            setTimeout(() => {
-                setPrayers(prayers.filter(prayer => prayer.id !== prayerId));
-                setActionLoading(null);
-                setModalVisible(false);
-                Alert.alert('Success', 'Prayer deleted successfully');
-            }, 500);
+            await adminPrayerService.deletePrayer(prayerId);
+            setPrayers(prayers.filter(prayer => prayer.id !== prayerId));
+            setActionLoading(null);
+            setModalVisible(false);
+            Alert.alert('Success', 'Prayer deleted successfully');
         } catch (error) {
             console.error('Error deleting prayer:', error);
             Alert.alert('Error', 'Failed to delete prayer');
@@ -327,7 +238,7 @@ export default function ReviewPrayers() {
         }
     };
 
-    const PrayerCard = ({ prayer }: { prayer: Prayer }) => (
+    const PrayerCard = ({ prayer }: { prayer: AdminPrayer }) => (
         <TouchableOpacity
             onPress={() => openPrayerDetails(prayer)}
             style={[
@@ -335,7 +246,7 @@ export default function ReviewPrayers() {
                 {
                     marginBottom: theme.Spacing.md,
                     borderLeftWidth: 4,
-                    borderLeftColor: getCategoryColor(prayer.category),
+                    borderLeftColor: getStatusColor(prayer),
                 }
             ]}
         >
@@ -396,22 +307,6 @@ export default function ReviewPrayers() {
                         marginBottom: 8
                     }}>
                         <View style={{
-                            backgroundColor: getCategoryColor(prayer.category) + '20',
-                            paddingHorizontal: theme.Spacing.sm,
-                            paddingVertical: 2,
-                            borderRadius: theme.BorderRadius.round,
-                        }}>
-                            <Text style={{
-                                fontSize: 10,
-                                color: getCategoryColor(prayer.category),
-                                fontWeight: '500' as '500',
-                                textTransform: 'capitalize',
-                            }}>
-                                {prayer.category}
-                            </Text>
-                        </View>
-
-                        <View style={{
                             backgroundColor: prayer.is_public ? theme.colors.success + '20' : theme.colors.textSecondary + '20',
                             paddingHorizontal: theme.Spacing.sm,
                             paddingVertical: 2,
@@ -423,6 +318,21 @@ export default function ReviewPrayers() {
                                 fontWeight: '500' as '500',
                             }}>
                                 {prayer.is_public ? 'Public' : 'Private'}
+                            </Text>
+                        </View>
+
+                        <View style={{
+                            backgroundColor: prayer.is_anonymous ? theme.colors.warning + '20' : theme.colors.accentPrimary + '20',
+                            paddingHorizontal: theme.Spacing.sm,
+                            paddingVertical: 2,
+                            borderRadius: theme.BorderRadius.round,
+                        }}>
+                            <Text style={{
+                                fontSize: 10,
+                                color: prayer.is_anonymous ? theme.colors.warning : theme.colors.accentPrimary,
+                                fontWeight: '500' as '500',
+                            }}>
+                                {prayer.is_anonymous ? 'Anonymous' : 'Public Name'}
                             </Text>
                         </View>
                     </View>
@@ -451,17 +361,7 @@ export default function ReviewPrayers() {
                             }}>
                                 <Ionicons name="heart" size={12} color={theme.colors.textSecondary} />
                                 <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginLeft: 2 }}>
-                                    {prayer.likes_count}
-                                </Text>
-                            </View>
-
-                            <View style={{
-                                flexDirection: 'row' as 'row',
-                                alignItems: 'center' as 'center'
-                            }}>
-                                <Ionicons name="chatbubble" size={12} color={theme.colors.textSecondary} />
-                                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginLeft: 2 }}>
-                                    {prayer.comments_count}
+                                    {prayer.prayer_count}
                                 </Text>
                             </View>
                         </View>
@@ -477,7 +377,7 @@ export default function ReviewPrayers() {
                     </Text>
                 </View>
 
-                {!prayer.is_approved && (
+                {prayer.status === 'pending' && (
                     <View style={{
                         alignItems: 'flex-end' as 'flex-end',
                         gap: theme.Spacing.sm,
@@ -546,8 +446,9 @@ export default function ReviewPrayers() {
                         gap: theme.Spacing.sm
                     }}>
                         {[
-                            { key: 'pending', label: 'Pending Review', count: prayers.filter(p => !p.is_approved).length },
-                            { key: 'approved', label: 'Approved', count: prayers.filter(p => p.is_approved).length },
+                            { key: 'pending', label: 'Pending Review', count: prayers.filter(p => p.status === 'pending').length },
+                            { key: 'approved', label: 'Approved', count: prayers.filter(p => p.status === 'approved').length },
+                            { key: 'rejected', label: 'Rejected', count: prayers.filter(p => p.status === 'rejected').length },
                         ].map(({ key, label, count }) => (
                             <TouchableOpacity
                                 key={key}
@@ -609,7 +510,7 @@ export default function ReviewPrayers() {
                             marginTop: theme.Spacing.lg,
                             textAlign: 'center' as 'center',
                         }}>
-                            {filter === 'pending' ? 'No prayers pending review' : 'No approved prayers'}
+                            {filter === 'pending' ? 'No prayers pending review' : `No ${filter} prayers`}
                         </Text>
                         <Text style={{
                             fontSize: 14,
@@ -619,7 +520,7 @@ export default function ReviewPrayers() {
                         }}>
                             {filter === 'pending'
                                 ? 'All prayers have been reviewed'
-                                : 'Approved prayers will appear here'
+                                : `${filter.charAt(0).toUpperCase() + filter.slice(1)} prayers will appear here`
                             }
                         </Text>
                     </View>
@@ -689,22 +590,6 @@ export default function ReviewPrayers() {
                                         gap: theme.Spacing.sm
                                     }}>
                                         <View style={{
-                                            backgroundColor: getCategoryColor(selectedPrayer.category) + '20',
-                                            paddingHorizontal: theme.Spacing.md,
-                                            paddingVertical: theme.Spacing.sm,
-                                            borderRadius: theme.BorderRadius.round,
-                                        }}>
-                                            <Text style={{
-                                                fontSize: 12,
-                                                color: getCategoryColor(selectedPrayer.category),
-                                                fontWeight: '500' as '500',
-                                                textTransform: 'capitalize',
-                                            }}>
-                                                {selectedPrayer.category}
-                                            </Text>
-                                        </View>
-
-                                        <View style={{
                                             backgroundColor: getStatusColor(selectedPrayer) + '20',
                                             paddingHorizontal: theme.Spacing.md,
                                             paddingVertical: theme.Spacing.sm,
@@ -733,6 +618,21 @@ export default function ReviewPrayers() {
                                                 {selectedPrayer.is_public ? 'Public' : 'Private'}
                                             </Text>
                                         </View>
+
+                                        <View style={{
+                                            backgroundColor: selectedPrayer.is_anonymous ? theme.colors.warning + '20' : theme.colors.accentPrimary + '20',
+                                            paddingHorizontal: theme.Spacing.md,
+                                            paddingVertical: theme.Spacing.sm,
+                                            borderRadius: theme.BorderRadius.round,
+                                        }}>
+                                            <Text style={{
+                                                fontSize: 12,
+                                                color: selectedPrayer.is_anonymous ? theme.colors.warning : theme.colors.accentPrimary,
+                                                fontWeight: '500' as '500',
+                                            }}>
+                                                {selectedPrayer.is_anonymous ? 'Anonymous' : 'Public Name'}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
 
@@ -751,13 +651,13 @@ export default function ReviewPrayers() {
                                         <View style={createInfoRowStyle(theme)}>
                                             <Text style={createInfoLabelStyle(theme)}>Name</Text>
                                             <Text style={createInfoValueStyle(theme)}>
-                                                {selectedPrayer.user_name || 'Not provided'}
+                                                {selectedPrayer.user_name || (selectedPrayer.is_anonymous ? 'Anonymous' : 'Not provided')}
                                             </Text>
                                         </View>
                                         <View style={createInfoRowStyle(theme)}>
                                             <Text style={createInfoLabelStyle(theme)}>Email</Text>
                                             <Text style={createInfoValueStyle(theme)}>
-                                                {selectedPrayer.user_email}
+                                                {selectedPrayer.is_anonymous ? 'Hidden' : selectedPrayer.user_email}
                                             </Text>
                                         </View>
                                         <View style={createInfoRowStyle(theme)}>
@@ -787,22 +687,15 @@ export default function ReviewPrayers() {
                                         <View style={{ alignItems: 'center' as 'center' }}>
                                             <Ionicons name="heart" size={24} color={theme.colors.error} />
                                             <Text style={createStatNumberStyle(theme)}>
-                                                {selectedPrayer.likes_count}
+                                                {selectedPrayer.prayer_count}
                                             </Text>
-                                            <Text style={createStatLabelStyle(theme)}>Likes</Text>
-                                        </View>
-                                        <View style={{ alignItems: 'center' as 'center' }}>
-                                            <Ionicons name="chatbubble" size={24} color={theme.colors.accentPrimary} />
-                                            <Text style={createStatNumberStyle(theme)}>
-                                                {selectedPrayer.comments_count}
-                                            </Text>
-                                            <Text style={createStatLabelStyle(theme)}>Comments</Text>
+                                            <Text style={createStatLabelStyle(theme)}>Prayers</Text>
                                         </View>
                                     </View>
                                 </View>
 
                                 {/* Approval Actions */}
-                                {!selectedPrayer.is_approved && (
+                                {selectedPrayer.status === 'pending' && (
                                     <View style={theme.card}>
                                         <Text style={{
                                             fontSize: 16,

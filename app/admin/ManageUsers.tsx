@@ -16,24 +16,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-
-interface User {
-    id: string;
-    email: string;
-    created_at: string;
-    last_sign_in_at?: string;
-    is_active: boolean;
-    is_admin: boolean;
-    profile?: {
-        full_name?: string;
-        avatar_url?: string;
-    };
-    stats?: {
-        audio_listened: number;
-        favorites_count: number;
-        prayers_posted: number;
-    };
-}
+import { adminUserService, AdminUser } from '../../services/adminUserService';
 
 // Helper functions for proper typing
 const createStatRowStyle = (theme: any): ViewStyle => ({
@@ -90,11 +73,11 @@ const createActionButtonTextStyle = (theme: any): TextStyle => ({
 
 export default function ManageUsers() {
     const theme = useTheme();
-    const [users, setUsers] = useState<User[]>([]);
+    const [users, setUsers] = useState<AdminUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'admin'>('all');
 
@@ -108,76 +91,12 @@ export default function ManageUsers() {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            // Simulate API call
-            setTimeout(() => {
-                setUsers([
-                    {
-                        id: '1',
-                        email: 'user1@example.com',
-                        created_at: '2024-01-15T10:30:00Z',
-                        last_sign_in_at: '2024-03-20T14:25:00Z',
-                        is_active: true,
-                        is_admin: false,
-                        profile: {
-                            full_name: 'John Doe',
-                        },
-                        stats: {
-                            audio_listened: 24,
-                            favorites_count: 8,
-                            prayers_posted: 12,
-                        },
-                    },
-                    {
-                        id: '2',
-                        email: 'admin@herquietplace.com',
-                        created_at: '2024-01-10T09:15:00Z',
-                        last_sign_in_at: '2024-03-20T16:45:00Z',
-                        is_active: true,
-                        is_admin: true,
-                        profile: {
-                            full_name: 'Admin User',
-                        },
-                        stats: {
-                            audio_listened: 156,
-                            favorites_count: 42,
-                            prayers_posted: 67,
-                        },
-                    },
-                    {
-                        id: '3',
-                        email: 'user2@example.com',
-                        created_at: '2024-02-20T11:20:00Z',
-                        last_sign_in_at: '2024-03-18T09:30:00Z',
-                        is_active: false,
-                        is_admin: false,
-                        profile: {
-                            full_name: 'Jane Smith',
-                        },
-                        stats: {
-                            audio_listened: 8,
-                            favorites_count: 3,
-                            prayers_posted: 5,
-                        },
-                    },
-                    {
-                        id: '4',
-                        email: 'user3@example.com',
-                        created_at: '2024-03-01T16:45:00Z',
-                        last_sign_in_at: '2024-03-20T08:15:00Z',
-                        is_active: true,
-                        is_admin: false,
-                        stats: {
-                            audio_listened: 45,
-                            favorites_count: 15,
-                            prayers_posted: 8,
-                        },
-                    }
-                ]);
-                setLoading(false);
-            }, 1000);
+            const usersData = await adminUserService.getUsers();
+            setUsers(usersData);
         } catch (error) {
             console.error('Error loading users:', error);
             Alert.alert('Error', 'Failed to load users');
+        } finally {
             setLoading(false);
         }
     };
@@ -187,7 +106,7 @@ export default function ManageUsers() {
         loadUsers();
     };
 
-    const openUserDetails = (user: User) => {
+    const openUserDetails = (user: AdminUser) => {
         setSelectedUser(user);
         setModalVisible(true);
     };
@@ -228,21 +147,19 @@ export default function ManageUsers() {
         return `${Math.floor(diffDays / 30)} months ago`;
     };
 
-    const toggleUserStatus = async (user: User) => {
+    const toggleUserStatus = async (user: AdminUser) => {
         setActionLoading(user.id);
         try {
-            const updatedUser = { ...user, is_active: !user.is_active };
-            // Simulate API call
-            setTimeout(() => {
-                setUsers(users.map(u => u.id === user.id ? updatedUser : u));
-                setActionLoading(null);
-                Alert.alert(
-                    'Success',
-                    updatedUser.is_active
-                        ? 'User activated successfully!'
-                        : 'User deactivated successfully!'
-                );
-            }, 500);
+            await adminUserService.setUserActiveStatus(user.id, !user.is_active);
+            const updatedUsers = await adminUserService.getUsers();
+            setUsers(updatedUsers);
+            setActionLoading(null);
+            Alert.alert(
+                'Success',
+                !user.is_active
+                    ? 'User activated successfully!'
+                    : 'User deactivated successfully!'
+            );
         } catch (error) {
             console.error('Error toggling user status:', error);
             Alert.alert('Error', 'Failed to update user status');
@@ -250,7 +167,7 @@ export default function ManageUsers() {
         }
     };
 
-    const toggleAdminStatus = async (user: User) => {
+    const toggleAdminStatus = async (user: AdminUser) => {
         if (user.email === 'admin@herquietplace.com') {
             Alert.alert('Error', 'Cannot modify primary admin account');
             return;
@@ -258,18 +175,16 @@ export default function ManageUsers() {
 
         setActionLoading(user.id);
         try {
-            const updatedUser = { ...user, is_admin: !user.is_admin };
-            // Simulate API call
-            setTimeout(() => {
-                setUsers(users.map(u => u.id === user.id ? updatedUser : u));
-                setActionLoading(null);
-                Alert.alert(
-                    'Success',
-                    updatedUser.is_admin
-                        ? 'User granted admin privileges!'
-                        : 'Admin privileges removed!'
-                );
-            }, 500);
+            await adminUserService.updateUserRole(user.id, user.is_admin ? 'user' : 'admin');
+            const updatedUsers = await adminUserService.getUsers();
+            setUsers(updatedUsers);
+            setActionLoading(null);
+            Alert.alert(
+                'Success',
+                !user.is_admin
+                    ? 'User granted admin privileges!'
+                    : 'Admin privileges removed!'
+            );
         } catch (error) {
             console.error('Error toggling admin status:', error);
             Alert.alert('Error', 'Failed to update admin status');
@@ -277,7 +192,7 @@ export default function ManageUsers() {
         }
     };
 
-    const handleDeleteUser = (user: User) => {
+    const handleDeleteUser = (user: AdminUser) => {
         if (user.email === 'admin@herquietplace.com') {
             Alert.alert('Error', 'Cannot delete primary admin account');
             return;
@@ -300,13 +215,12 @@ export default function ManageUsers() {
     const deleteUser = async (userId: string) => {
         setActionLoading(userId);
         try {
-            // Simulate API call
-            setTimeout(() => {
-                setUsers(users.filter(user => user.id !== userId));
-                setActionLoading(null);
-                setModalVisible(false);
-                Alert.alert('Success', 'User deleted successfully!');
-            }, 500);
+            await adminUserService.deleteUser(userId);
+            const updatedUsers = await adminUserService.getUsers();
+            setUsers(updatedUsers);
+            setActionLoading(null);
+            setModalVisible(false);
+            Alert.alert('Success', 'User deleted successfully!');
         } catch (error) {
             console.error('Error deleting user:', error);
             Alert.alert('Error', 'Failed to delete user');
@@ -314,7 +228,7 @@ export default function ManageUsers() {
         }
     };
 
-    const UserCard = ({ user }: { user: User }) => (
+    const UserCard = ({ user }: { user: AdminUser }) => (
         <TouchableOpacity
             onPress={() => openUserDetails(user)}
             style={[

@@ -17,7 +17,8 @@ import {
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { AudioComfort } from '../../types/audio';
-import {audioService} from "@/services/audioService";
+import { adminAudioService } from '../../services/adminAudioService';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Helper functions for proper typing
 const createToggleRowStyle = (theme: any): ViewStyle => ({
@@ -41,10 +42,9 @@ const createToggleLabelStyle = (theme: any): TextStyle => ({
     color: theme.colors.text,
 });
 
-// ... rest of your imports and interfaces remain the same
-
 export default function ManageAudio() {
     const theme = useTheme();
+    const { user } = useAuth();
     const [audios, setAudios] = useState<AudioComfort[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -70,7 +70,7 @@ export default function ManageAudio() {
     const loadAudios = async () => {
         try {
             setLoading(true);
-            const audioData = await audioService.getAudioComforts();
+            const audioData = await adminAudioService.getAudioComforts();
             setAudios(audioData);
         } catch (error) {
             console.error('Error loading audios:', error);
@@ -127,12 +127,16 @@ export default function ManageAudio() {
             return;
         }
 
+        // Check if user is authenticated - with proper null check
+        if (!user) {
+            Alert.alert('Error', 'You must be logged in to manage audio content');
+            return;
+        }
+
         try {
             if (editingAudio) {
-                // Update existing audio
                 await updateAudio();
             } else {
-                // Add new audio
                 await addAudio();
             }
             setModalVisible(false);
@@ -144,42 +148,53 @@ export default function ManageAudio() {
     };
 
     const addAudio = async () => {
-        // This would typically call your Supabase API
-        const newAudio: Partial<AudioComfort> = {
-            title: formData.title,
-            description: formData.description,
-            audio_url: formData.audio_url,
-            duration: parseInt(formData.duration),
-            category: formData.category,
-            speaker: formData.speaker,
-            is_premium: formData.is_premium,
-            is_active: formData.is_active,
-            created_at: new Date().toISOString(),
-        };
+        try {
+            // Add explicit null check here
+            if (!user) {
+                Alert.alert('Error', 'User not authenticated');
+                return;
+            }
 
-        // Simulate API call
-        console.log('Adding audio:', newAudio);
-        Alert.alert('Success', 'Audio added successfully!');
+            await adminAudioService.createAudioComfort({
+                title: formData.title,
+                description: formData.description,
+                audio_url: formData.audio_url,
+                duration: parseInt(formData.duration),
+                category: formData.category,
+                speaker: formData.speaker,
+                is_premium: formData.is_premium,
+                is_active: formData.is_active,
+                created_by: user.id, // Now TypeScript knows user is not null
+            });
+            Alert.alert('Success', 'Audio added successfully!');
+        } catch (error) {
+            console.error('Error adding audio:', error);
+            Alert.alert('Error', 'Failed to add audio');
+            throw error;
+        }
     };
 
     const updateAudio = async () => {
         if (!editingAudio) return;
 
-        const updatedAudio: Partial<AudioComfort> = {
-            ...editingAudio,
-            title: formData.title,
-            description: formData.description,
-            audio_url: formData.audio_url,
-            duration: parseInt(formData.duration),
-            category: formData.category,
-            speaker: formData.speaker,
-            is_premium: formData.is_premium,
-            is_active: formData.is_active,
-        };
-
-        // Simulate API call
-        console.log('Updating audio:', updatedAudio);
-        Alert.alert('Success', 'Audio updated successfully!');
+        try {
+            await adminAudioService.updateAudioComfort(editingAudio.id, {
+                title: formData.title,
+                description: formData.description,
+                audio_url: formData.audio_url,
+                duration: parseInt(formData.duration),
+                category: formData.category,
+                speaker: formData.speaker,
+                is_premium: formData.is_premium,
+                is_active: formData.is_active,
+                created_by: editingAudio.created_by,
+            });
+            Alert.alert('Success', 'Audio updated successfully!');
+        } catch (error) {
+            console.error('Error updating audio:', error);
+            Alert.alert('Error', 'Failed to update audio');
+            throw error;
+        }
     };
 
     const handleDelete = (audio: AudioComfort) => {
@@ -199,8 +214,7 @@ export default function ManageAudio() {
 
     const deleteAudio = async (audioId: string) => {
         try {
-            // Simulate API call
-            console.log('Deleting audio:', audioId);
+            await adminAudioService.deleteAudioComfort(audioId);
             setAudios(audios.filter(audio => audio.id !== audioId));
             Alert.alert('Success', 'Audio deleted successfully!');
         } catch (error) {
@@ -211,9 +225,9 @@ export default function ManageAudio() {
 
     const toggleAudioStatus = async (audio: AudioComfort) => {
         try {
-            const updatedAudio = { ...audio, is_active: !audio.is_active };
-            // Simulate API call
-            console.log('Toggling audio status:', updatedAudio);
+            const updatedAudio = await adminAudioService.updateAudioComfort(audio.id, {
+                is_active: !audio.is_active
+            });
             setAudios(audios.map(a => a.id === audio.id ? updatedAudio : a));
         } catch (error) {
             console.error('Error toggling audio status:', error);

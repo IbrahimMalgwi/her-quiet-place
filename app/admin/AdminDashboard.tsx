@@ -1,20 +1,15 @@
 // app/admin/adminDashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-
-interface DashboardStats {
-    totalUsers: number;
-    totalAudio: number;
-    totalPrayers: number;
-    pendingPrayers: number;
-    dailyStrengths: number;
-}
+import { adminService, DashboardStats } from '../../services/adminService';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AdminDashboard() {
     const theme = useTheme();
+    const { signOut, user } = useAuth();
     const [stats, setStats] = useState<DashboardStats>({
         totalUsers: 0,
         totalAudio: 0,
@@ -30,21 +25,38 @@ export default function AdminDashboard() {
 
     const loadDashboardStats = async () => {
         try {
-            // Simulate API call
-            setTimeout(() => {
-                setStats({
-                    totalUsers: 1247,
-                    totalAudio: 89,
-                    totalPrayers: 567,
-                    pendingPrayers: 23,
-                    dailyStrengths: 45,
-                });
-                setLoading(false);
-            }, 1000);
+            const dashboardStats = await adminService.getDashboardStats();
+            setStats(dashboardStats);
         } catch (error) {
             console.error('Error loading dashboard stats:', error);
+            Alert.alert('Error', 'Failed to load dashboard statistics');
+        } finally {
             setLoading(false);
         }
+    };
+
+    const handleLogout = async () => {
+        Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await signOut();
+                            // FIX: Use the correct route format
+                            router.replace('/(auth)/login'); // or whatever your auth route is
+                        } catch (error) {
+                            console.error('Error during logout:', error);
+                            Alert.alert('Error', 'Failed to logout');
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const StatCard = ({ title, value, icon, color, onPress }: any) => (
@@ -132,6 +144,55 @@ export default function AdminDashboard() {
 
     return (
         <ScrollView style={theme.screen} contentContainerStyle={{ padding: theme.Spacing.md }}>
+            {/* Header with Welcome and Logout */}
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: theme.Spacing.xl,
+            }}>
+                <View style={{ flex: 1 }}>
+                    <Text style={{
+                        fontSize: 28,
+                        fontWeight: 'bold',
+                        color: theme.colors.text,
+                        marginBottom: theme.Spacing.xs,
+                    }}>
+                        Admin Dashboard
+                    </Text>
+                    <Text style={{
+                        fontSize: 14,
+                        color: theme.colors.textSecondary,
+                    }}>
+                        Welcome back, {user?.email || 'Admin'}
+                    </Text>
+                </View>
+
+                <TouchableOpacity
+                    onPress={handleLogout}
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: theme.Spacing.md,
+                        paddingVertical: theme.Spacing.sm,
+                        backgroundColor: theme.colors.error + '15',
+                        borderRadius: theme.BorderRadius.md,
+                        borderWidth: 1,
+                        borderColor: theme.colors.error + '30',
+                    }}
+                >
+                    <Ionicons name="log-out-outline" size={18} color={theme.colors.error} />
+                    <Text style={{
+                        marginLeft: theme.Spacing.sm,
+                        color: theme.colors.error,
+                        fontWeight: '600',
+                        fontSize: 14,
+                    }}>
+                        Logout
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
             {/* Stats Grid */}
             <Text style={{
                 fontSize: 20,
@@ -235,34 +296,51 @@ export default function AdminDashboard() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
                         <Ionicons name="person-add" size={16} color={theme.colors.success} />
                         <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }}>
-                            5 new users joined today
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            2h ago
+                            {stats.totalUsers} total users registered
                         </Text>
                     </View>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
                         <Ionicons name="musical-notes" size={16} color={theme.colors.accentPrimary} />
                         <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }}>
-                            New audio "Evening Peace" added
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            5h ago
+                            {stats.totalAudio} audio files available
                         </Text>
                     </View>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
                         <Ionicons name="heart" size={16} color={theme.colors.error} />
                         <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }}>
-                            3 prayers awaiting approval
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            1d ago
+                            {stats.pendingPrayers} prayers awaiting approval
                         </Text>
                     </View>
                 </View>
             </View>
+
+            {/* Refresh Button */}
+            <TouchableOpacity
+                onPress={loadDashboardStats}
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: theme.Spacing.md,
+                    backgroundColor: theme.colors.accentPrimary + '15',
+                    borderRadius: theme.BorderRadius.md,
+                    marginTop: theme.Spacing.xl,
+                    borderWidth: 1,
+                    borderColor: theme.colors.accentPrimary + '30',
+                }}
+            >
+                <Ionicons name="refresh" size={18} color={theme.colors.accentPrimary} />
+                <Text style={{
+                    marginLeft: theme.Spacing.sm,
+                    color: theme.colors.accentPrimary,
+                    fontWeight: '600',
+                    fontSize: 14,
+                }}>
+                    Refresh Dashboard
+                </Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 }

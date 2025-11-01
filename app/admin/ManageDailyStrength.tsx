@@ -17,19 +17,7 @@ import {
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-interface DailyStrength {
-    id: string;
-    title: string;
-    content: string;
-    bible_verse?: string;
-    author?: string;
-    category: string;
-    scheduled_date: string;
-    is_published: boolean;
-    created_at: string;
-    likes_count: number;
-}
+import { adminDailyStrengthService, DailyStrength } from '../../services/adminDailyStrengthService';
 
 // Helper functions for proper typing
 const createLabelStyle = (theme: any): TextStyle => ({
@@ -67,15 +55,14 @@ export default function ManageDailyStrength() {
     const [editingStrength, setEditingStrength] = useState<DailyStrength | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Form state
+    // Form state - updated to match your database schema
     const [formData, setFormData] = useState({
         title: '',
-        content: '',
-        bible_verse: '',
+        message: '', // Changed from content to message
         author: '',
-        category: 'inspiration',
-        scheduled_date: new Date(),
-        is_published: false,
+        type: 'quote', // Default type
+        is_active: true,
+        approved: true, // Default to approved for admin
     });
 
     // Categories for dropdown
@@ -97,39 +84,12 @@ export default function ManageDailyStrength() {
     const loadDailyStrengths = async () => {
         try {
             setLoading(true);
-            // Simulate API call
-            setTimeout(() => {
-                setDailyStrengths([
-                    {
-                        id: '1',
-                        title: 'Morning Blessings',
-                        content: 'Start your day with gratitude and watch how blessings flow into your life.',
-                        bible_verse: 'Psalm 118:24',
-                        author: 'Sarah Johnson',
-                        category: 'inspiration',
-                        scheduled_date: new Date().toISOString(),
-                        is_published: true,
-                        created_at: new Date().toISOString(),
-                        likes_count: 45,
-                    },
-                    {
-                        id: '2',
-                        title: 'Strength in Faith',
-                        content: 'When you feel weak, remember that faith gives you strength beyond your own.',
-                        bible_verse: 'Isaiah 40:31',
-                        author: 'Michael Chen',
-                        category: 'faith',
-                        scheduled_date: new Date(Date.now() + 86400000).toISOString(),
-                        is_published: false,
-                        created_at: new Date().toISOString(),
-                        likes_count: 0,
-                    }
-                ]);
-                setLoading(false);
-            }, 1000);
+            const strengths = await adminDailyStrengthService.getDailyStrengths();
+            setDailyStrengths(strengths);
         } catch (error) {
             console.error('Error loading daily strengths:', error);
             Alert.alert('Error', 'Failed to load daily strengths');
+        } finally {
             setLoading(false);
         }
     };
@@ -142,12 +102,11 @@ export default function ManageDailyStrength() {
     const resetForm = () => {
         setFormData({
             title: '',
-            content: '',
-            bible_verse: '',
+            message: '',
             author: '',
-            category: 'inspiration',
-            scheduled_date: new Date(),
-            is_published: false,
+            type: 'quote',
+            is_active: true,
+            approved: true,
         });
         setEditingStrength(null);
     };
@@ -159,13 +118,12 @@ export default function ManageDailyStrength() {
 
     const openEditModal = (strength: DailyStrength) => {
         setFormData({
-            title: strength.title,
-            content: strength.content,
-            bible_verse: strength.bible_verse || '',
+            title: strength.title || '',
+            message: strength.message,
             author: strength.author || '',
-            category: strength.category,
-            scheduled_date: new Date(strength.scheduled_date),
-            is_published: strength.is_published,
+            type: strength.type || 'quote',
+            is_active: strength.is_active,
+            approved: strength.approved,
         });
         setEditingStrength(strength);
         setModalVisible(true);
@@ -173,13 +131,11 @@ export default function ManageDailyStrength() {
 
     const handleDateChange = (event: any, selectedDate?: Date) => {
         setShowDatePicker(false);
-        if (selectedDate) {
-            setFormData(prev => ({ ...prev, scheduled_date: selectedDate }));
-        }
+        // Date handling removed since your schema doesn't have scheduled_date
     };
 
-    const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-US', {
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -188,8 +144,8 @@ export default function ManageDailyStrength() {
 
     const handleSubmit = async () => {
         // Validation
-        if (!formData.title || !formData.content) {
-            Alert.alert('Error', 'Please fill in title and content');
+        if (!formData.title || !formData.message) {
+            Alert.alert('Error', 'Please fill in title and message');
             return;
         }
 
@@ -208,41 +164,41 @@ export default function ManageDailyStrength() {
     };
 
     const addStrength = async () => {
-        const newStrength: DailyStrength = {
-            id: Date.now().toString(),
-            title: formData.title,
-            content: formData.content,
-            bible_verse: formData.bible_verse,
-            author: formData.author,
-            category: formData.category,
-            scheduled_date: formData.scheduled_date.toISOString(),
-            is_published: formData.is_published,
-            created_at: new Date().toISOString(),
-            likes_count: 0,
-        };
-
-        // Simulate API call
-        console.log('Adding daily strength:', newStrength);
-        Alert.alert('Success', 'Daily strength added successfully!');
+        try {
+            await adminDailyStrengthService.createDailyStrength({
+                title: formData.title,
+                message: formData.message,
+                author: formData.author,
+                type: formData.type,
+                is_active: formData.is_active,
+                approved: formData.approved,
+            });
+            Alert.alert('Success', 'Daily strength added successfully!');
+        } catch (error) {
+            console.error('Error adding daily strength:', error);
+            Alert.alert('Error', 'Failed to add daily strength');
+            throw error;
+        }
     };
 
     const updateStrength = async () => {
         if (!editingStrength) return;
 
-        const updatedStrength: DailyStrength = {
-            ...editingStrength,
-            title: formData.title,
-            content: formData.content,
-            bible_verse: formData.bible_verse,
-            author: formData.author,
-            category: formData.category,
-            scheduled_date: formData.scheduled_date.toISOString(),
-            is_published: formData.is_published,
-        };
-
-        // Simulate API call
-        console.log('Updating daily strength:', updatedStrength);
-        Alert.alert('Success', 'Daily strength updated successfully!');
+        try {
+            await adminDailyStrengthService.updateDailyStrength(editingStrength.id, {
+                title: formData.title,
+                message: formData.message,
+                author: formData.author,
+                type: formData.type,
+                is_active: formData.is_active,
+                approved: formData.approved,
+            });
+            Alert.alert('Success', 'Daily strength updated successfully!');
+        } catch (error) {
+            console.error('Error updating daily strength:', error);
+            Alert.alert('Error', 'Failed to update daily strength');
+            throw error;
+        }
     };
 
     const handleDelete = (strength: DailyStrength) => {
@@ -262,8 +218,7 @@ export default function ManageDailyStrength() {
 
     const deleteStrength = async (strengthId: string) => {
         try {
-            // Simulate API call
-            console.log('Deleting daily strength:', strengthId);
+            await adminDailyStrengthService.deleteDailyStrength(strengthId);
             setDailyStrengths(dailyStrengths.filter(strength => strength.id !== strengthId));
             Alert.alert('Success', 'Daily strength deleted successfully!');
         } catch (error) {
@@ -274,14 +229,14 @@ export default function ManageDailyStrength() {
 
     const togglePublishStatus = async (strength: DailyStrength) => {
         try {
-            const updatedStrength = { ...strength, is_published: !strength.is_published };
-            // Simulate API call
-            console.log('Toggling publish status:', updatedStrength);
+            const updatedStrength = await adminDailyStrengthService.updateDailyStrength(strength.id, {
+                is_active: !strength.is_active
+            });
             setDailyStrengths(dailyStrengths.map(s => s.id === strength.id ? updatedStrength : s));
 
             Alert.alert(
                 'Success',
-                updatedStrength.is_published
+                updatedStrength.is_active
                     ? 'Daily strength published!'
                     : 'Daily strength unpublished!'
             );
@@ -291,7 +246,7 @@ export default function ManageDailyStrength() {
         }
     };
 
-    const getCategoryColor = (category: string) => {
+    const getCategoryColor = (type: string) => {
         const colors: { [key: string]: string } = {
             inspiration: '#6366f1',
             scripture: '#10b981',
@@ -301,8 +256,9 @@ export default function ManageDailyStrength() {
             faith: '#06b6d4',
             hope: '#ec4899',
             love: '#dc2626',
+            quote: '#6366f1',
         };
-        return colors[category] || theme.colors.accentPrimary;
+        return colors[type] || theme.colors.accentPrimary;
     };
 
     const StrengthCard = ({ strength }: { strength: DailyStrength }) => (
@@ -310,9 +266,9 @@ export default function ManageDailyStrength() {
             theme.card,
             {
                 marginBottom: theme.Spacing.md,
-                opacity: strength.is_published ? 1 : 0.7,
+                opacity: strength.is_active ? 1 : 0.7,
                 borderLeftWidth: 4,
-                borderLeftColor: getCategoryColor(strength.category),
+                borderLeftColor: getCategoryColor(strength.type),
             }
         ]}>
             <View style={{
@@ -327,7 +283,7 @@ export default function ManageDailyStrength() {
                         color: theme.colors.text,
                         marginBottom: 4,
                     }}>
-                        {strength.title}
+                        {strength.title || 'Untitled'}
                     </Text>
 
                     <Text style={{
@@ -336,7 +292,7 @@ export default function ManageDailyStrength() {
                         lineHeight: 20,
                         marginBottom: 8,
                     }} numberOfLines={3}>
-                        {strength.content}
+                        {strength.message}
                     </Text>
 
                     <View style={{
@@ -346,22 +302,22 @@ export default function ManageDailyStrength() {
                         marginBottom: 8
                     }}>
                         <View style={{
-                            backgroundColor: getCategoryColor(strength.category) + '20',
+                            backgroundColor: getCategoryColor(strength.type) + '20',
                             paddingHorizontal: theme.Spacing.sm,
                             paddingVertical: 2,
                             borderRadius: theme.BorderRadius.round,
                         }}>
                             <Text style={{
                                 fontSize: 10,
-                                color: getCategoryColor(strength.category),
+                                color: getCategoryColor(strength.type),
                                 fontWeight: '500' as '500',
                                 textTransform: 'capitalize',
                             }}>
-                                {strength.category}
+                                {strength.type}
                             </Text>
                         </View>
 
-                        {strength.bible_verse && (
+                        {strength.author && (
                             <View style={{
                                 backgroundColor: theme.colors.accentPrimary + '20',
                                 paddingHorizontal: theme.Spacing.sm,
@@ -373,7 +329,7 @@ export default function ManageDailyStrength() {
                                     color: theme.colors.accentPrimary,
                                     fontWeight: '500' as '500',
                                 }}>
-                                    📖 {strength.bible_verse}
+                                    👤 {strength.author}
                                 </Text>
                             </View>
                         )}
@@ -388,7 +344,7 @@ export default function ManageDailyStrength() {
                             fontSize: 12,
                             color: theme.colors.textSecondary,
                         }}>
-                            {formatDate(new Date(strength.scheduled_date))}
+                            {formatDate(strength.created_at)}
                         </Text>
 
                         <View style={{
@@ -401,34 +357,16 @@ export default function ManageDailyStrength() {
                                 alignItems: 'center' as 'center'
                             }}>
                                 <Ionicons
-                                    name="heart"
+                                    name={strength.is_active ? "eye" : "eye-off"}
                                     size={12}
-                                    color={theme.colors.textSecondary}
+                                    color={strength.is_active ? theme.colors.success : theme.colors.textSecondary}
                                 />
                                 <Text style={{
                                     fontSize: 12,
-                                    color: theme.colors.textSecondary,
+                                    color: strength.is_active ? theme.colors.success : theme.colors.textSecondary,
                                     marginLeft: 2,
                                 }}>
-                                    {strength.likes_count}
-                                </Text>
-                            </View>
-
-                            <View style={{
-                                flexDirection: 'row' as 'row',
-                                alignItems: 'center' as 'center'
-                            }}>
-                                <Ionicons
-                                    name={strength.is_published ? "eye" : "eye-off"}
-                                    size={12}
-                                    color={strength.is_published ? theme.colors.success : theme.colors.textSecondary}
-                                />
-                                <Text style={{
-                                    fontSize: 12,
-                                    color: strength.is_published ? theme.colors.success : theme.colors.textSecondary,
-                                    marginLeft: 2,
-                                }}>
-                                    {strength.is_published ? 'Published' : 'Draft'}
+                                    {strength.is_active ? 'Published' : 'Draft'}
                                 </Text>
                             </View>
                         </View>
@@ -446,9 +384,9 @@ export default function ManageDailyStrength() {
                         style={{ padding: theme.Spacing.xs }}
                     >
                         <Ionicons
-                            name={strength.is_published ? "eye-off-outline" : "eye-outline"}
+                            name={strength.is_active ? "eye-off-outline" : "eye-outline"}
                             size={20}
-                            color={strength.is_published ? theme.colors.warning : theme.colors.success}
+                            color={strength.is_active ? theme.colors.warning : theme.colors.success}
                         />
                     </TouchableOpacity>
 
@@ -616,27 +554,16 @@ export default function ManageDailyStrength() {
                                 />
                             </View>
 
-                            {/* Content */}
+                            {/* Message */}
                             <View>
-                                <Text style={createLabelStyle(theme)}>Content *</Text>
+                                <Text style={createLabelStyle(theme)}>Message *</Text>
                                 <TextInput
                                     style={[theme.input, { height: 120, textAlignVertical: 'top' }]}
-                                    value={formData.content}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, content: text }))}
+                                    value={formData.message}
+                                    onChangeText={(text) => setFormData(prev => ({ ...prev, message: text }))}
                                     placeholder="Write your inspirational message..."
                                     multiline
                                     numberOfLines={5}
-                                />
-                            </View>
-
-                            {/* Bible Verse */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Bible Verse (Optional)</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.bible_verse}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, bible_verse: text }))}
-                                    placeholder="e.g., John 3:16"
                                 />
                             </View>
 
@@ -651,67 +578,45 @@ export default function ManageDailyStrength() {
                                 />
                             </View>
 
-                            {/* Category */}
+                            {/* Type */}
                             <View>
-                                <Text style={createLabelStyle(theme)}>Category</Text>
+                                <Text style={createLabelStyle(theme)}>Type</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     <View style={{
                                         flexDirection: 'row' as 'row',
                                         gap: theme.Spacing.sm
                                     }}>
-                                        {categories.map(cat => (
+                                        {['quote', 'scripture', 'prayer', 'reflection', 'encouragement'].map(type => (
                                             <TouchableOpacity
-                                                key={cat}
-                                                onPress={() => setFormData(prev => ({ ...prev, category: cat }))}
+                                                key={type}
+                                                onPress={() => setFormData(prev => ({ ...prev, type }))}
                                                 style={{
                                                     paddingHorizontal: theme.Spacing.md,
                                                     paddingVertical: theme.Spacing.sm,
                                                     borderRadius: theme.BorderRadius.round,
-                                                    backgroundColor: formData.category === cat
-                                                        ? getCategoryColor(cat)
+                                                    backgroundColor: formData.type === type
+                                                        ? getCategoryColor(type)
                                                         : theme.colors.backgroundCard,
                                                     borderWidth: 1,
-                                                    borderColor: formData.category === cat
-                                                        ? getCategoryColor(cat)
+                                                    borderColor: formData.type === type
+                                                        ? getCategoryColor(type)
                                                         : theme.colors.border,
                                                 }}
                                             >
                                                 <Text style={{
                                                     fontSize: 12,
                                                     fontWeight: '500' as '500',
-                                                    color: formData.category === cat
+                                                    color: formData.type === type
                                                         ? theme.colors.textInverse
                                                         : theme.colors.textSecondary,
                                                     textTransform: 'capitalize',
                                                 }}>
-                                                    {cat}
+                                                    {type}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
                                 </ScrollView>
-                            </View>
-
-                            {/* Scheduled Date */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Scheduled Date</Text>
-                                <TouchableOpacity
-                                    style={theme.input}
-                                    onPress={() => setShowDatePicker(true)}
-                                >
-                                    <Text style={{ color: theme.colors.text }}>
-                                        {formatDate(formData.scheduled_date)}
-                                    </Text>
-                                </TouchableOpacity>
-                                {showDatePicker && (
-                                    <DateTimePicker
-                                        value={formData.scheduled_date}
-                                        mode="date"
-                                        display="default"
-                                        onChange={handleDateChange}
-                                        minimumDate={new Date()}
-                                    />
-                                )}
                             </View>
 
                             {/* Publish Toggle */}
@@ -724,8 +629,8 @@ export default function ManageDailyStrength() {
                                         </Text>
                                     </View>
                                     <Switch
-                                        value={formData.is_published}
-                                        onValueChange={(value) => setFormData(prev => ({ ...prev, is_published: value }))}
+                                        value={formData.is_active}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, is_active: value }))}
                                         trackColor={{ false: theme.colors.border, true: theme.colors.success }}
                                     />
                                 </View>
