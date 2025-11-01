@@ -1,5 +1,6 @@
+// hooks/use-theme-color.ts
 import { useColorScheme } from 'react-native';
-import Colors from '../constants/theme'; // adjust if your file is named theme.ts
+import { Colors } from '../constants/theme'; // Import named export
 
 export function useThemeColor(
     props: { light?: string; dark?: string },
@@ -12,6 +13,6 @@ export function useThemeColor(
         return colorFromProps;
     }
 
-    // Safe fallback
-    return Colors?.[theme]?.[colorName] ?? '#4A4A4A';
+    // Safe fallback - now we can properly index Colors
+    return Colors[theme][colorName] ?? '#4A4A4A';
 }

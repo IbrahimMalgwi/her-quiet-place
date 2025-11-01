@@ -1,5 +1,5 @@
 // app/(auth)/login.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     View,
@@ -12,10 +12,10 @@ import {
     ScrollView,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
-import { Link, router, Redirect } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 
 export default function LoginScreen() {
-    const { signIn, user, loading: authLoading } = useAuth();
+    const { signIn, user, userRole, loading: authLoading } = useAuth();
     const theme = useTheme();
 
     const [email, setEmail] = useState('');
@@ -24,9 +24,13 @@ export default function LoginScreen() {
     const [error, setError] = useState<string | null>(null);
 
     // Redirect if user is already authenticated
-    // In your login.tsx
     if (user && !authLoading) {
-        return <Redirect href="/(tabs)/HomeScreen" />;
+        console.log('User authenticated, role:', userRole);
+        if (userRole === 'admin') {
+            return <Redirect href="/admin" />;
+        } else {
+            return <Redirect href="/(tabs)" />;
+        }
     }
 
     // Show loading while checking auth state
@@ -39,17 +43,24 @@ export default function LoginScreen() {
                 backgroundColor: theme.colors.background
             }}>
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
-                <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
+                <Text style={{
+                    marginTop: theme.Spacing.md,
+                    color: theme.colors.text
+                }}>
                     Checking authentication...
                 </Text>
             </View>
         );
     }
 
-    // In your login.tsx - update the handleLogin function
     const handleLogin = async () => {
         if (!email || !password) {
             setError('Please fill in all fields');
+            return;
+        }
+
+        if (!email.includes('@')) {
+            setError('Please enter a valid email address');
             return;
         }
 
@@ -61,11 +72,8 @@ export default function LoginScreen() {
 
             if (error) {
                 setError(error.message);
-            } else {
-                console.log('Login successful');
-                // The auth state change will automatically redirect to tabs
-                // No need for manual navigation
             }
+            // Auth state change will handle redirect automatically
         } catch (err) {
             setError('An unexpected error occurred');
             console.error('Login error:', err);
@@ -87,7 +95,7 @@ export default function LoginScreen() {
                 contentContainerStyle={{
                     flexGrow: 1,
                     justifyContent: 'center',
-                    padding: theme.Spacing.xl // This should work now
+                    padding: theme.Spacing.xl
                 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
@@ -223,7 +231,7 @@ export default function LoginScreen() {
                             color: theme.colors.textSecondary,
                             fontSize: 14
                         }}>
-                            Don't have an account?{' '}
+                            Don&#39;t have an account?{' '}
                         </Text>
                         <Link href="/(auth)/signup" asChild>
                             <TouchableOpacity>

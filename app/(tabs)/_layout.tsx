@@ -1,13 +1,14 @@
 // app/(tabs)/_layout.tsx
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
+
 export default function TabsLayout() {
-    const { user, loading } = useAuth();
+    const { user, userRole, loading } = useAuth();
     const theme = useTheme();
 
     if (loading) {
@@ -19,20 +20,18 @@ export default function TabsLayout() {
                 backgroundColor: theme.colors.background
             }}>
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
-                <Text style={{
-                    marginTop: theme.Spacing.md,
-                    color: theme.colors.text,
-                    fontSize: 16
-                }}>
-                    Loading...
-                </Text>
             </View>
         );
     }
 
-    // If no user, the index screen will handle redirect to auth
+
+    // Redirect to auth if not logged in, or to admin if admin user
     if (!user) {
-        return null; // Let the index screen handle the redirect
+        return <Redirect href="/(auth)/login" />;
+    }
+
+    if (userRole === 'admin') {
+        return <Redirect href="/admin" />;
     }
 
     return (
@@ -57,7 +56,7 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    href: null, // Hide from tabs since we're using HomeScreen
+                    href: null,
                 }}
             />
             <Tabs.Screen

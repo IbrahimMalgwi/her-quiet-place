@@ -1,15 +1,32 @@
 // app/admin/_layout.tsx
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { Redirect } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+import { useTheme } from '../../constants/theme';
+
+
 
 export default function AdminLayout() {
-    const { user } = useAuth();
+    const { user, userRole, loading } = useAuth();
+    const theme = useTheme();
 
-    // Simple admin check - you might want to enhance this
-    const isAdmin = user?.email?.includes('admin') || user?.email === 'admin@herquietplace.com';
+    if (loading) {
+        return (
+            <View style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: theme.colors.background
+            }}>
+                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+            </View>
+        );
+    }
 
-    if (!isAdmin) {
+
+
+    // Redirect non-admin users to regular app
+    if (!user || userRole !== 'admin') {
         return <Redirect href="/(tabs)" />;
     }
 

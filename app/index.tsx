@@ -1,12 +1,12 @@
 // app/index.tsx
-import { useEffect } from 'react';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
 
+
 export default function IndexScreen() {
-    const { user, loading } = useAuth();
+    const { user, userRole, loading } = useAuth();
     const theme = useTheme();
 
     if (loading) {
@@ -22,9 +22,15 @@ export default function IndexScreen() {
         );
     }
 
-    // Redirect based on authentication status
+
+
+    // Redirect based on authentication status and role
     if (user) {
-        return <Redirect href="/(tabs)" />;
+        if (userRole === 'admin') {
+            return <Redirect href="/admin" />;
+        } else {
+            return <Redirect href="/(tabs)" />;
+        }
     } else {
         return <Redirect href="/(auth)/login" />;
     }
