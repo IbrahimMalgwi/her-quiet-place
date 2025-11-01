@@ -1,5 +1,5 @@
 // app/_layout.tsx
-import { Stack, Redirect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
@@ -21,7 +21,6 @@ function RootLayoutNav() {
         );
     }
 
-
     return (
         <Stack screenOptions={{ headerShown: false }}>
             {!user ? (
@@ -29,12 +28,12 @@ function RootLayoutNav() {
                 <Stack.Screen name="(auth)" />
             ) : userRole === 'admin' ? (
                 // Admin user - show admin screens
-                <Stack.Screen name="admin" />
+                <Stack.Screen name="(admin)" />
             ) : (
                 // Regular user - show user tabs
                 <Stack.Screen name="(tabs)" />
             )}
-            <Stack.Screen name="index" />
+            {/* Remove the index screen from here if it's just for redirects */}
         </Stack>
     );
 }

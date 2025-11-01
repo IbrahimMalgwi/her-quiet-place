@@ -4,12 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
 
-
 export default function IndexScreen() {
     const { user, userRole, loading } = useAuth();
     const theme = useTheme();
 
-    if (loading) {
+    // Show loading indicator only during initial app load
+    if (loading && !user) {
         return (
             <View style={{
                 flex: 1,
@@ -22,16 +22,15 @@ export default function IndexScreen() {
         );
     }
 
-
-
-    // Redirect based on authentication status and role
+    // If we have a user, redirect based on role
     if (user) {
         if (userRole === 'admin') {
             return <Redirect href="/admin" />;
         } else {
             return <Redirect href="/(tabs)" />;
         }
-    } else {
-        return <Redirect href="/(auth)/login" />;
     }
+
+    // No user - redirect to login
+    return <Redirect href="/(auth)/login" />;
 }

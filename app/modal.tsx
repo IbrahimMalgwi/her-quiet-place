@@ -1,34 +1,35 @@
+// app/modal.tsx
 import { View, Text, Button, StyleSheet } from "react-native";
-import { useAuth } from "../contexts/AuthContext"; // Import from the correct path
+import { useAuth } from "../contexts/AuthContext";
 import { useRouter } from "expo-router";
 
 export default function ModalScreen() {
-    const { isAuthenticated, user, signOut } = useAuth(); // Now isAuthenticated is available
+    const { user, signOut } = useAuth(); // Remove isAuthenticated
     const router = useRouter();
 
     const handleAuth = () => {
-        if (isAuthenticated) {
+        if (user) {
             signOut();
-            router.replace("/(auth)/login");
+            // No need to redirect here - your RootLayout will handle it automatically
         } else {
-            router.replace("/(auth)/login");
+            router.push("/(auth)/login");
         }
     };
 
     return (
         <View style={styles.container}>
             <Text style={styles.title}>
-                {isAuthenticated ? "You are logged in" : "You are not logged in"}
+                {user ? "You are logged in" : "You are not logged in"}
             </Text>
 
-            {isAuthenticated && user && (
+            {user && (
                 <Text style={styles.subtitle}>
                     Email: {user.email}
                 </Text>
             )}
 
             <Button
-                title={isAuthenticated ? "Logout" : "Login"}
+                title={user ? "Logout" : "Login"}
                 onPress={handleAuth}
             />
         </View>

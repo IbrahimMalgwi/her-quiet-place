@@ -3,7 +3,6 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 
-// Use the built-in User type and extend it properly
 interface AuthContextType {
     user: User | null;
     session: Session | null;
@@ -15,7 +14,6 @@ interface AuthContextType {
     isAuthenticated: boolean;
 }
 
-// Export AuthContext so it can be used in useAuth hook
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -24,7 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
 
-    // Add isAuthenticated computed property
     const isAuthenticated = !!user;
 
     const checkUserRole = async (user: User) => {
@@ -42,6 +39,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
+            // If no role found in user_roles, create a default one
+            if (error && error.code === 'PGRST116') { // No rows returned
+                console.log('No role found, creating default user role');
+                const { error: insertError } = await supabase
+                    .from('user_roles')
+                    .insert([
+                        {
+                            user_id: user.id,
+                            role: 'user',
+                            created_at: new Date().toISOString()
+                        }
+                    ]);
+
+                if (!insertError) {
+                    setUserRole('user');
+                    return;
+                }
+            }
+
             // Fallback: Check user_metadata
             const metadata = user.user_metadata as { role?: string };
             if (metadata?.role === 'admin') {
@@ -50,15 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            // Final fallback: Check email (for development)
-            const isAdmin = user.email?.includes('admin') ||
-                user.email === 'admin@herquietplace.com';
-            console.log('Role from email check:', isAdmin ? 'admin' : 'user');
-            setUserRole(isAdmin ? 'admin' : 'user');
+            // Final fallback: Default to user role
+            console.log('Defaulting to user role');
+            setUserRole('user');
 
         } catch (error) {
             console.error('Error checking user role:', error);
-            setUserRole('user'); // Default to user role
+            setUserRole('user'); // Default to user role on error
         }
     };
 
@@ -67,8 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const initializeAuth = async () => {
             try {
+                setLoading(true);
+
                 // Get initial session
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error } = await supabase.auth.getSession();
+
+                if (error) {
+                    console.error('Error getting session:', error);
+                    throw error;
+                }
 
                 if (!mounted) return;
 
@@ -77,9 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (session?.user) {
                     await checkUserRole(session.user);
+                } else {
+                    setUserRole(null);
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
+                // Don't throw here - we want to continue even if auth fails
             } finally {
                 if (mounted) {
                     setLoading(false);
@@ -95,6 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!mounted) return;
 
                 console.log('Auth state changed:', event);
+
+                // Update auth state
                 setSession(session);
                 setUser(session?.user ?? null);
 
@@ -104,7 +130,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUserRole(null);
                 }
 
-                setLoading(false);
+                // Only set loading to false if we're not in initial load
+                // This prevents flickering when we already have initial state
+                if (event !== 'INITIAL_SESSION') {
+                    setLoading(false);
+                }
             }
         );
 
@@ -116,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signIn = async (email: string, password: string) => {
         try {
+            setLoading(true);
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -129,53 +160,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Sign in error:', error);
             return { error };
+        } finally {
+            setLoading(false);
         }
     };
 
     const signUp = async (email: string, password: string) => {
         try {
+            setLoading(true);
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         role: 'user' // Default role for new signups
-                    }
+                    },
+                    emailRedirectTo: `${window.location.origin}/auth/callback` // Adjust for your app
                 }
             });
 
             if (data.user && !error) {
                 // Create a record in user_roles table for the new user
                 try {
-                    await supabase
+                    const { error: roleError } = await supabase
                         .from('user_roles')
                         .insert([
                             {
                                 user_id: data.user.id,
-                                role: 'user'
+                                role: 'user',
+                                created_at: new Date().toISOString()
                             }
                         ]);
+
+                    if (roleError) {
+                        console.error('Error creating user role:', roleError);
+                    } else {
+                        await checkUserRole(data.user);
+                    }
                 } catch (insertError) {
                     console.error('Error creating user role:', insertError);
                 }
-
-                await checkUserRole(data.user);
             }
 
             return { error };
         } catch (error) {
             console.error('Sign up error:', error);
             return { error };
+        } finally {
+            setLoading(false);
         }
     };
 
     const signOut = async () => {
         try {
+            setLoading(true);
             const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            setUserRole(null);
+            if (error) {
+                console.error('Sign out error:', error);
+                throw error;
+            }
+            // State will be cleared by the auth state change listener
         } catch (error) {
             console.error('Sign out error:', error);
+            throw error;
+        } finally {
+            setLoading(false);
         }
     };
 

@@ -6,7 +6,6 @@ import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
-
 export default function TabsLayout() {
     const { user, userRole, loading } = useAuth();
     const theme = useTheme();
@@ -23,7 +22,6 @@ export default function TabsLayout() {
             </View>
         );
     }
-
 
     // Redirect to auth if not logged in, or to admin if admin user
     if (!user) {
@@ -53,12 +51,14 @@ export default function TabsLayout() {
                 },
             }}
         >
-            <Tabs.Screen
+            {/* REMOVE this index screen since it's causing issues */}
+            {/* <Tabs.Screen
                 name="index"
                 options={{
                     href: null,
                 }}
-            />
+            /> */}
+
             <Tabs.Screen
                 name="HomeScreen"
                 options={{
