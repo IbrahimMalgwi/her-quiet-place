@@ -1,9 +1,6 @@
-import { View, Text } from "react-native";
+// app/admin/index.tsx
+import { Redirect } from 'expo-router';
 
-export default function AdminDashboard() {
-    return (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <Text>👑 Admin Dashboard</Text>
-        </View>
-    );
+export default function AdminIndex() {
+    return <Redirect href="/admin/AdminDashboard" />;
 }

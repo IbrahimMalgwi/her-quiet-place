@@ -1,38 +1,68 @@
-// app/Admin/_layout.tsx
-import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
-import { ActivityIndicator, View } from 'react-native';
-import { Colors } from '../../constants/theme';
+// app/admin/_layout.tsx
+import { Stack } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
+import { Redirect } from 'expo-router';
 
 export default function AdminLayout() {
-    const { session, profile, loading } = useAuth();
+    const { user } = useAuth();
 
-    if (loading)
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator />
-            </View>
-        );
+    // Simple admin check - you might want to enhance this
+    const isAdmin = user?.email?.includes('admin') || user?.email === 'admin@herquietplace.com';
 
-    if (!session) return <Redirect href="/(auth)/login" />;
-
-    // If not admin, send them to user tabs
-    if (profile?.role !== 'admin') return <Redirect href="/(tabs)" />;
+    if (!isAdmin) {
+        return <Redirect href="/(tabs)" />;
+    }
 
     return (
-        <Tabs
-            screenOptions={{
-                tabBarActiveTintColor: Colors.accentPrimary,
-                tabBarInactiveTintColor: Colors.textSecondary,
-                tabBarStyle: { backgroundColor: Colors.backgroundSecondary },
-            }}
-        >
-            <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
-            <Tabs.Screen name="manage-daily-strength" options={{ title: 'Daily' }} />
-            <Tabs.Screen name="manage-audio" options={{ title: 'Audio' }} />
-            <Tabs.Screen name="review-prayers" options={{ title: 'Prayers' }} />
-            <Tabs.Screen name="manage-users" options={{ title: 'Users' }} />
-        </Tabs>
+        <Stack screenOptions={{ headerShown: true }}>
+            <Stack.Screen
+                name="index"
+                options={{
+                    title: 'Admin Dashboard',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+            <Stack.Screen
+                name="adminDashboard"
+                options={{
+                    title: 'Dashboard Overview',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+            <Stack.Screen
+                name="ManageAudio"
+                options={{
+                    title: 'Manage Audio',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+            <Stack.Screen
+                name="ManageDailyStrength"
+                options={{
+                    title: 'Daily Strength',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+            <Stack.Screen
+                name="ManageUsers"
+                options={{
+                    title: 'Manage Users',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+            <Stack.Screen
+                name="ReviewPrayers"
+                options={{
+                    title: 'Review Prayers',
+                    headerStyle: { backgroundColor: '#6366f1' },
+                    headerTintColor: '#fff',
+                }}
+            />
+        </Stack>
     );
 }
