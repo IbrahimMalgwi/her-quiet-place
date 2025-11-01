@@ -24,8 +24,9 @@ export default function LoginScreen() {
     const [error, setError] = useState<string | null>(null);
 
     // Redirect if user is already authenticated
+    // In your login.tsx
     if (user && !authLoading) {
-        return <Redirect href="/(tabs)" />;
+        return <Redirect href="/(tabs)/HomeScreen" />;
     }
 
     // Show loading while checking auth state
