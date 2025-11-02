@@ -97,6 +97,7 @@ export default function ReviewPrayers() {
             Alert.alert('Error', 'Failed to load prayers');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -155,10 +156,12 @@ export default function ReviewPrayers() {
         return 'Pending Review';
     };
 
+    // Fixed approve prayer function using the robust method
     const approvePrayer = async (prayer: AdminPrayer) => {
         setActionLoading(prayer.id);
         try {
-            const updatedPrayer = await adminPrayerService.approvePrayer(prayer.id);
+            // Use the robust alternative method that separates update and fetch
+            const updatedPrayer = await adminPrayerService.approvePrayerAlternative(prayer.id);
             setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
             setActionLoading(null);
             setModalVisible(false);
@@ -170,6 +173,7 @@ export default function ReviewPrayers() {
         }
     };
 
+    // Fixed reject prayer function using the robust method
     const rejectPrayer = async (prayer: AdminPrayer) => {
         if (!rejectionReason.trim()) {
             Alert.alert('Error', 'Please provide a reason for rejection');
@@ -178,7 +182,8 @@ export default function ReviewPrayers() {
 
         setActionLoading(prayer.id);
         try {
-            const updatedPrayer = await adminPrayerService.rejectPrayer(prayer.id, rejectionReason);
+            // Use the robust alternative method for rejection too
+            const updatedPrayer = await adminPrayerService.rejectPrayerAlternative(prayer.id, rejectionReason);
             setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));
             setActionLoading(null);
             setModalVisible(false);
@@ -190,12 +195,11 @@ export default function ReviewPrayers() {
         }
     };
 
-    // In ReviewPrayers.tsx - replace the makePrivate function
     const makePrivate = async (prayer: AdminPrayer) => {
         setActionLoading(prayer.id);
         try {
             const updatedPrayer = await adminPrayerService.updatePrayer(prayer.id, {
-                status: 'rejected', // Rejecting makes it private
+                status: 'rejected',
                 rejection_reason: 'Made private by admin'
             });
             setPrayers(prayers.map(p => p.id === prayer.id ? updatedPrayer : p));

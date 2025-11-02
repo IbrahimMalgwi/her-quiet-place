@@ -1,4 +1,4 @@
-// app/admin/_layout.tsx
+// app/(admin)/_layout.tsx
 import { Stack, Redirect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { ActivityIndicator, View, TouchableOpacity } from 'react-native';
@@ -30,11 +30,24 @@ export default function AdminLayout() {
     return (
         <Stack screenOptions={{
             headerShown: true,
-            headerStyle: { backgroundColor: '#6366f1' },
-            headerTintColor: '#fff',
+            headerStyle: {
+                backgroundColor: theme.colors.accentPrimary || '#6366f1'
+            },
+            headerTintColor: theme.colors.textInverse || '#fff',
+            headerTitleStyle: {
+                fontWeight: '600',
+            },
             headerRight: () => (
-                <TouchableOpacity onPress={signOut} style={{ marginRight: 16 }}>
-                    <Ionicons name="log-out-outline" size={24} color="#fff" />
+                <TouchableOpacity
+                    onPress={signOut}
+                    style={{ marginRight: 16 }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Ionicons
+                        name="log-out-outline"
+                        size={24}
+                        color={theme.colors.textInverse || '#fff'}
+                    />
                 </TouchableOpacity>
             )
         }}>
@@ -44,11 +57,16 @@ export default function AdminLayout() {
                     title: 'Admin Dashboard',
                 }}
             />
-            {/* REMOVE the adminDashboard screen - it doesn't exist as a file */}
             <Stack.Screen
                 name="ManageAudio"
                 options={{
-                    title: 'Manage Audio',
+                    title: 'Manage Audio Comforts',
+                }}
+            />
+            <Stack.Screen
+                name="ManageCuratedPrayers"
+                options={{
+                    title: 'Curated Prayers',
                 }}
             />
             <Stack.Screen

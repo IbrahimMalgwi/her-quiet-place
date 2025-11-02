@@ -1,51 +1,32 @@
+// services/adminUserService.ts - UPDATED TO HANDLE MISSING PROFILES
 import { supabase } from '../lib/supabase';
 
 export interface AdminUser {
     id: string;
     email: string;
+    full_name?: string;
+    role: 'admin' | 'user';
     created_at: string;
-    last_sign_in_at?: string;
-    is_active: boolean;
-    is_admin: boolean;
-    profile?: {
-        full_name?: string;
-        avatar_url?: string;
-    };
-    stats?: {
-        audio_listened: number;
-        favorites_count: number;
-        prayers_posted: number;
-    };
-}
-
-// Create a custom type that includes the banned property
-interface AdminUserWithBanStatus {
-    id: string;
-    email: string;
-    created_at: string;
-    last_sign_in_at?: string;
-    email_confirmed_at?: string | null;
-    banned?: boolean;
+    last_sign_in?: string;
+    prayer_count: number;
+    has_profile: boolean;
 }
 
 export const adminUserService = {
-    // Get all users with their roles and profiles
     async getUsers(): Promise<AdminUser[]> {
         try {
-            // Get auth users
-            const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-            if (authError) throw authError;
-
-            // Get user roles
-            const { data: roles, error: rolesError } = await supabase
+            // First, get all user roles
+            const { data: userRoles, error: rolesError } = await supabase
                 .from('user_roles')
-                .select('*');
+                .select('*')
+                .order('created_at', { ascending: false });
 
             if (rolesError) {
                 console.error('Error fetching user roles:', rolesError);
+                throw rolesError;
             }
 
-            // Get user profiles
+            // Then get profiles for users that have them
             const { data: profiles, error: profilesError } = await supabase
                 .from('profiles')
                 .select('*');
@@ -54,139 +35,137 @@ export const adminUserService = {
                 console.error('Error fetching profiles:', profilesError);
             }
 
-            // Get user stats
-            const userStats = await this.getUserStats();
+            // Get prayer counts
+            const { data: userPrayers, error: prayersError } = await supabase
+                .from('prayer_requests')
+                .select('user_id, id');
 
-            // Combine all data
-            return authUsers.users.map(authUser => {
-                // Use type assertion to access the banned property
-                const adminUser = authUser as unknown as AdminUserWithBanStatus;
-                const userRole = roles?.find(r => r.user_id === authUser.id);
-                const profile = profiles?.find(p => p.id === authUser.id);
-                const stats = userStats[authUser.id] || {
-                    audio_listened: 0,
-                    favorites_count: 0,
-                    prayers_posted: 0
-                };
+            if (prayersError) {
+                console.error('Error fetching prayers:', prayersError);
+            }
 
-                // CORRECT FIX: Use type assertion to access banned property
-                const isActive = adminUser.email_confirmed_at !== null &&
-                    !adminUser.banned;
+            // Count prayers per user
+            const prayerCounts: Record<string, number> = {};
+            userPrayers?.forEach(prayer => {
+                prayerCounts[prayer.user_id] = (prayerCounts[prayer.user_id] || 0) + 1;
+            });
+
+            // Create a map of profiles by user ID
+            const profilesMap = new Map();
+            profiles?.forEach(profile => {
+                profilesMap.set(profile.id, profile);
+            });
+
+            return (userRoles || []).map(userRole => {
+                const profile = profilesMap.get(userRole.user_id);
+                const hasProfile = !!profile;
 
                 return {
-                    id: authUser.id,
-                    email: authUser.email!,
-                    created_at: authUser.created_at,
-                    last_sign_in_at: authUser.last_sign_in_at,
-                    is_active: isActive,
-                    is_admin: userRole?.role === 'admin',
-                    profile: profile ? {
-                        full_name: profile.full_name,
-                        avatar_url: profile.avatar_url
-                    } : undefined,
-                    stats
+                    id: userRole.user_id,
+                    email: 'user@example.com', // Can't get real email without admin API
+                    full_name: profile?.full_name,
+                    role: userRole.role,
+                    created_at: userRole.created_at,
+                    prayer_count: prayerCounts[userRole.user_id] || 0,
+                    has_profile: hasProfile
                 };
             });
         } catch (error) {
             console.error('Error fetching users:', error);
-            return [];
+            throw error;
         }
     },
 
-    // Get user statistics
-    async getUserStats(): Promise<{ [userId: string]: { audio_listened: number; favorites_count: number; prayers_posted: number } }> {
-        const stats: { [userId: string]: { audio_listened: number; favorites_count: number; prayers_posted: number } } = {};
-
+    async updateUserRole(userId: string, role: 'admin' | 'user'): Promise<void> {
         try {
-            // Get audio listened count
-            const { data: audioProgress } = await supabase
-                .from('user_audio_progress')
-                .select('user_id');
-
-            // Get favorites count
-            const { data: favorites } = await supabase
-                .from('user_audio_favorites')
-                .select('user_id');
-
-            // Get prayers posted count
-            const { data: prayers } = await supabase
-                .from('prayer_requests')
-                .select('user_id');
-
-            // Calculate stats
-            if (audioProgress) {
-                audioProgress.forEach(progress => {
-                    if (!stats[progress.user_id]) {
-                        stats[progress.user_id] = { audio_listened: 0, favorites_count: 0, prayers_posted: 0 };
-                    }
-                    stats[progress.user_id].audio_listened++;
-                });
-            }
-
-            if (favorites) {
-                favorites.forEach(fav => {
-                    if (!stats[fav.user_id]) {
-                        stats[fav.user_id] = { audio_listened: 0, favorites_count: 0, prayers_posted: 0 };
-                    }
-                    stats[fav.user_id].favorites_count++;
-                });
-            }
-
-            if (prayers) {
-                prayers.forEach(prayer => {
-                    if (!stats[prayer.user_id]) {
-                        stats[prayer.user_id] = { audio_listened: 0, favorites_count: 0, prayers_posted: 0 };
-                    }
-                    stats[prayer.user_id].prayers_posted++;
-                });
-            }
-        } catch (error) {
-            console.error('Error calculating user stats:', error);
-        }
-
-        return stats;
-    },
-
-    // Update user role
-    async updateUserRole(userId: string, role: 'user' | 'admin'): Promise<void> {
-        try {
-            const { error } = await supabase
+            // Only update user_roles table (references auth.users)
+            const { error: roleError } = await supabase
                 .from('user_roles')
-                .upsert({ user_id: userId, role })
-                .eq('user_id', userId);
+                .upsert({
+                    user_id: userId,
+                    role: role,
+                    created_at: new Date().toISOString()
+                }, {
+                    onConflict: 'user_id'
+                });
 
-            if (error) throw error;
+            if (roleError) throw roleError;
+
+            // Try to update profiles table if the profile exists
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ role })
+                .eq('id', userId);
+
+            if (profileError) {
+                console.warn('User profile not found, skipping profile update:', profileError);
+                // This is okay - not all users have profiles yet
+            }
+
         } catch (error) {
             console.error('Error updating user role:', error);
             throw error;
         }
     },
 
-    // Ban/unban user
-    async setUserActiveStatus(userId: string, isActive: boolean): Promise<void> {
+    async createUserProfile(userId: string, full_name?: string): Promise<void> {
         try {
-            const { error } = await supabase.auth.admin.updateUserById(
-                userId,
-                {
-                    ban_duration: isActive ? 'none' : '876600h' // 100 years for permanent ban
-                }
-            );
+            const { error } = await supabase
+                .from('profiles')
+                .insert({
+                    id: userId,
+                    full_name: full_name || 'User',
+                    role: 'user',
+                    created_at: new Date().toISOString()
+                });
 
             if (error) throw error;
         } catch (error) {
-            console.error('Error setting user active status:', error);
+            console.error('Error creating user profile:', error);
             throw error;
         }
     },
 
-    // Delete user
-    async deleteUser(userId: string): Promise<void> {
+    async getUserStats(): Promise<{
+        totalUsers: number;
+        adminUsers: number;
+        regularUsers: number;
+        usersWithProfiles: number;
+    }> {
         try {
-            const { error } = await supabase.auth.admin.deleteUser(userId);
-            if (error) throw error;
+            const { data: userRoles, error: rolesError } = await supabase
+                .from('user_roles')
+                .select('user_id, role');
+
+            if (rolesError) throw rolesError;
+
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id');
+
+            if (profilesError) {
+                console.error('Error fetching profiles:', profilesError);
+            }
+
+            const totalUsers = userRoles?.length || 0;
+            const adminUsers = userRoles?.filter(ur => ur.role === 'admin').length || 0;
+            const regularUsers = totalUsers - adminUsers;
+            const usersWithProfiles = profiles?.length || 0;
+
+            return {
+                totalUsers,
+                adminUsers,
+                regularUsers,
+                usersWithProfiles
+            };
         } catch (error) {
-            console.error('Error deleting user:', error);
-            throw error;
+            console.error('Error fetching user stats:', error);
+            return {
+                totalUsers: 0,
+                adminUsers: 0,
+                regularUsers: 0,
+                usersWithProfiles: 0
+            };
         }
-    },
+    }
 };

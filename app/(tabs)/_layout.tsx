@@ -51,14 +51,6 @@ export default function TabsLayout() {
                 },
             }}
         >
-            {/* REMOVE this index screen since it's causing issues */}
-            {/* <Tabs.Screen
-                name="index"
-                options={{
-                    href: null,
-                }}
-            /> */}
-
             <Tabs.Screen
                 name="HomeScreen"
                 options={{

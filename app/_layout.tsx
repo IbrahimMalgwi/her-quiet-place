@@ -1,5 +1,5 @@
 // app/_layout.tsx
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
@@ -33,7 +33,6 @@ function RootLayoutNav() {
                 // Regular user - show user tabs
                 <Stack.Screen name="(tabs)" />
             )}
-            {/* Remove the index screen from here if it's just for redirects */}
         </Stack>
     );
 }

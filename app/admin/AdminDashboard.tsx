@@ -23,13 +23,23 @@ export default function AdminDashboard() {
         loadDashboardStats();
     }, []);
 
+    // In your AdminDashboard component, update the loadDashboardStats function:
     const loadDashboardStats = async () => {
         try {
+            setLoading(true);
             const dashboardStats = await adminService.getDashboardStats();
             setStats(dashboardStats);
         } catch (error) {
             console.error('Error loading dashboard stats:', error);
             Alert.alert('Error', 'Failed to load dashboard statistics');
+            // Set default stats on error
+            setStats({
+                totalUsers: 0,
+                totalAudio: 0,
+                totalPrayers: 0,
+                pendingPrayers: 0,
+                dailyStrengths: 0,
+            });
         } finally {
             setLoading(false);
         }

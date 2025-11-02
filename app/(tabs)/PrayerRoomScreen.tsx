@@ -30,13 +30,15 @@ type PrayerIconName =
     | 'hand-left-outline'
     | 'stats-chart-outline';
 
-type TabType = 'community' | 'curated' | 'my-prayers';
+// Updated tab order: Curated first, then Community, then My Prayers
+type TabType = 'curated' | 'community' | 'my-prayers';
 
 export default function PrayerRoomScreen() {
     const theme = useTheme();
     const { user } = useAuth();
 
-    const [activeTab, setActiveTab] = useState<TabType>('community');
+    // Updated default tab to 'curated'
+    const [activeTab, setActiveTab] = useState<TabType>('curated');
     const [communityPrayers, setCommunityPrayers] = useState<PrayerRequest[]>([]);
     const [curatedPrayers, setCuratedPrayers] = useState<CuratedPrayer[]>([]);
     const [myPrayers, setMyPrayers] = useState<PrayerRequest[]>([]);
@@ -68,15 +70,15 @@ export default function PrayerRoomScreen() {
         try {
             setLoading(true);
 
-            // Load data based on active tab
+            // Load data based on active tab - updated order
             switch (activeTab) {
-                case 'community':
-                    const communityData = await prayerService.getApprovedPrayers();
-                    setCommunityPrayers(communityData);
-                    break;
                 case 'curated':
                     const curatedData = await prayerService.getCuratedPrayers();
                     setCuratedPrayers(curatedData);
+                    break;
+                case 'community':
+                    const communityData = await prayerService.getApprovedPrayers();
+                    setCommunityPrayers(communityData);
                     break;
                 case 'my-prayers':
                     const myPrayersData = await prayerService.getUserPrayers();
@@ -391,13 +393,13 @@ export default function PrayerRoomScreen() {
                 </View>
             </View>
 
-            {/* Tab Navigation */}
+            {/* Tab Navigation - Updated Order: Curated -> Community -> My Prayers */}
             <View style={{
                 flexDirection: 'row',
                 borderBottomWidth: 1,
                 borderBottomColor: theme.colors.border,
             }}>
-                {(['community', 'curated', 'my-prayers'] as TabType[]).map((tab) => (
+                {(['curated', 'community', 'my-prayers'] as TabType[]).map((tab) => (
                     <TouchableOpacity
                         key={tab}
                         onPress={() => setActiveTab(tab)}
@@ -414,15 +416,15 @@ export default function PrayerRoomScreen() {
                             fontWeight: '600',
                             color: activeTab === tab ? theme.colors.accentPrimary : theme.colors.textSecondary,
                         }}>
-                            {tab === 'community' && 'Community Prayers'}
                             {tab === 'curated' && 'Curated Prayers'}
+                            {tab === 'community' && 'Community Prayers'}
                             {tab === 'my-prayers' && 'My Prayers'}
                         </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            {/* Content */}
+            {/* Content - Updated Order to Match Tabs */}
             <ScrollView
                 style={{ flex: 1 }}
                 refreshControl={
@@ -435,33 +437,7 @@ export default function PrayerRoomScreen() {
                 }
                 contentContainerStyle={{ padding: theme.Spacing.md }}
             >
-                {activeTab === 'community' && (
-                    communityPrayers.length === 0 ? (
-                        <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
-                            <Ionicons name="people-outline" size={64} color={theme.colors.textSecondary} />
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: '600',
-                                color: theme.colors.text,
-                                marginTop: theme.Spacing.lg,
-                                textAlign: 'center',
-                            }}>
-                                No community prayers yet
-                            </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: theme.colors.textSecondary,
-                                marginTop: theme.Spacing.sm,
-                                textAlign: 'center',
-                            }}>
-                                Be the first to submit a prayer request
-                            </Text>
-                        </View>
-                    ) : (
-                        communityPrayers.map(prayer => renderPrayerCard(prayer, true))
-                    )
-                )}
-
+                {/* Curated Prayers First */}
                 {activeTab === 'curated' && (
                     curatedPrayers.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
@@ -489,6 +465,35 @@ export default function PrayerRoomScreen() {
                     )
                 )}
 
+                {/* Community Prayers Second */}
+                {activeTab === 'community' && (
+                    communityPrayers.length === 0 ? (
+                        <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
+                            <Ionicons name="people-outline" size={64} color={theme.colors.textSecondary} />
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: '600',
+                                color: theme.colors.text,
+                                marginTop: theme.Spacing.lg,
+                                textAlign: 'center',
+                            }}>
+                                No community prayers yet
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: theme.colors.textSecondary,
+                                marginTop: theme.Spacing.sm,
+                                textAlign: 'center',
+                            }}>
+                                Be the first to submit a prayer request
+                            </Text>
+                        </View>
+                    ) : (
+                        communityPrayers.map(prayer => renderPrayerCard(prayer, true))
+                    )
+                )}
+
+                {/* My Prayers Third */}
                 {activeTab === 'my-prayers' && (
                     myPrayers.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
