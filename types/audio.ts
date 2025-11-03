@@ -3,7 +3,7 @@ export interface AudioComfort {
     id: string;
     title: string;
     description?: string;
-    audio_url: string;
+    audio_url: string; // This will be the public URL from Supabase Storage
     duration: number; // in seconds
     category?: string;
     speaker?: string;
@@ -17,8 +17,12 @@ export interface AudioComfort {
     is_favorited?: boolean;
     progress?: number; // 0-100
     current_position?: number; // in seconds
+    // Add storage-specific fields
+    storage_path?: string; // Path in Supabase Storage bucket
+    bucket_name?: string; // 'audio-files' or 'prayer-audio'
 }
 
+// Keep your other interfaces the same
 export interface AudioProgress {
     id: string;
     user_id: string;

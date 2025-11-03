@@ -1,7 +1,9 @@
+// hooks/useAudioPlayer.ts
 import { useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { PlaybackState, AudioComfort } from '../types/audio';
 import { audioService } from '../services/audioService';
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 export const useAudioPlayer = () => {
     const [playbackState, setPlaybackState] = useState<PlaybackState>({
@@ -12,6 +14,7 @@ export const useAudioPlayer = () => {
 
     const [currentAudio, setCurrentAudio] = useState<AudioComfort | null>(null);
     const soundRef = useRef<Audio.Sound | null>(null);
+    const { user } = useAuth(); // Get user from AuthContext
 
     useEffect(() => {
         // Configure audio mode
@@ -64,35 +67,43 @@ export const useAudioPlayer = () => {
                     duration: status.durationMillis ? status.durationMillis / 1000 : 0,
                 });
 
-                // Auto-save progress every 10 seconds
-                if (status.positionMillis && status.positionMillis % 10000 < 100) {
+                // Auto-save progress every 10 seconds (only if user is authenticated)
+                if (user && status.positionMillis && status.positionMillis % 10000 < 100) {
                     await audioService.saveProgress(
                         audio.id,
                         status.positionMillis / 1000,
+                        user.id,
                         status.didJustFinish
                     );
                 }
 
-                // Save progress when finished
-                if (status.didJustFinish) {
-                    await audioService.saveProgress(audio.id, status.durationMillis / 1000, true);
+                // Save progress when finished (only if user is authenticated)
+                if (user && status.didJustFinish) {
+                    await audioService.saveProgress(
+                        audio.id,
+                        status.durationMillis / 1000,
+                        user.id,
+                        true
+                    );
                 }
             });
 
             setCurrentAudio(audio);
 
-            // Restore saved progress safely
-            const progress = await audioService.getProgress(audio.id);
-            if (progress && progress.progress_seconds > 0) {
-                let attempts = 0;
-                let status = await sound.getStatusAsync();
-                while (!status.isLoaded && attempts < 10) {
-                    await new Promise(res => setTimeout(res, 100));
-                    status = await sound.getStatusAsync();
-                    attempts++;
-                }
-                if (status.isLoaded) {
-                    await sound.setPositionAsync(progress.progress_seconds * 1000);
+            // Restore saved progress safely (only if user is authenticated)
+            if (user) {
+                const progress = await audioService.getProgress(audio.id, user.id);
+                if (progress && progress.progress_seconds > 0) {
+                    let attempts = 0;
+                    let status = await sound.getStatusAsync();
+                    while (!status.isLoaded && attempts < 10) {
+                        await new Promise(res => setTimeout(res, 100));
+                        status = await sound.getStatusAsync();
+                        attempts++;
+                    }
+                    if (status.isLoaded) {
+                        await sound.setPositionAsync(progress.progress_seconds * 1000);
+                    }
                 }
             }
         } catch (error) {
@@ -101,6 +112,7 @@ export const useAudioPlayer = () => {
         }
     };
 
+    // ... rest of your useAudioPlayer methods remain the same
     const playPause = async () => {
         if (!soundRef.current) return;
 

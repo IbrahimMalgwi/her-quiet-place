@@ -15,12 +15,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { audioService } from '../../services/audioService';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { AudioComfort } from '../../types/audio';
-import AudioCard from '../../components/AudioCard';
+import AudioCard from '../../components/AudioCard'; // Use the simple version
 import NowPlayingBar from '../../components/NowPlayingBar';
 
 export default function AudioRoomScreen() {
     const theme = useTheme();
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const audioPlayer = useAudioPlayer();
 
     const [audios, setAudios] = useState<AudioComfort[]>([]);
@@ -36,6 +36,7 @@ export default function AudioRoomScreen() {
         try {
             setLoading(true);
             const data = await audioService.getAudioComforts();
+            console.log('Loaded audios:', data.length);
             setAudios(data);
         } catch (error) {
             console.error('Error loading audios:', error);
@@ -60,7 +61,7 @@ export default function AudioRoomScreen() {
         setTogglingFavorites(prev => ({ ...prev, [audioId]: true }));
 
         try {
-            const isNowFavorited = await audioService.toggleFavorite(audioId);
+            const isNowFavorited = await audioService.toggleFavorite(audioId, user.id);
             setAudios(prev =>
                 prev.map(audio =>
                     audio.id === audioId ? { ...audio, is_favorited: isNowFavorited } : audio
@@ -164,7 +165,7 @@ export default function AudioRoomScreen() {
                             key={audio.id}
                             audio={audio}
                             audioPlayer={audioPlayer}
-                            onToggleFavorite={handleToggleFavorite}
+                            onToggleFavorite={isAuthenticated ? handleToggleFavorite : undefined}
                             togglingFavorites={togglingFavorites}
                         />
                     ))
