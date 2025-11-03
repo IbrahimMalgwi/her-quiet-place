@@ -1,5 +1,5 @@
 // app/(tabs)/JournalScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,14 +10,20 @@ import {
     Alert,
     ActivityIndicator,
     RefreshControl,
+    Animated,
+    Easing,
+    Dimensions,
+    StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { journalService } from '../../services/journalService';
 import { JournalEntry, MoodType } from '../../types/journal';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Define valid icon names for mood icons
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 type MoodIconName =
     | 'happy-outline'
     | 'sad-outline'
@@ -30,22 +36,38 @@ type MoodIconName =
     | 'flash-outline'
     | 'ellipse-outline';
 
-// Define valid icon names for other icons used in this component
 type JournalIconName =
     | MoodIconName
     | 'journal-outline'
     | 'add'
-    | 'trash-outline';
+    | 'trash-outline'
+    | 'search-outline'
+    | 'close-outline'
+    | 'filter-outline'
+    | 'stats-chart-outline'
+    | 'calendar-outline';
+
+interface MoodStats {
+    mood: MoodType;
+    count: number;
+    percentage: number;
+}
 
 export default function JournalScreen() {
     const theme = useTheme();
     const { user } = useAuth();
 
     const [entries, setEntries] = useState<JournalEntry[]>([]);
+    const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [showEditor, setShowEditor] = useState(false);
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    const [selectedMoodFilter, setSelectedMoodFilter] = useState<MoodType | 'all'>('all');
+    const [showStats, setShowStats] = useState(false);
+    const [moodStats, setMoodStats] = useState<MoodStats[]>([]);
 
     // Form state
     const [title, setTitle] = useState('');
@@ -53,9 +75,35 @@ export default function JournalScreen() {
     const [selectedMood, setSelectedMood] = useState<MoodType>('neutral');
     const [saving, setSaving] = useState(false);
 
+    // Track original values for comparison when editing
+    const [originalEntry, setOriginalEntry] = useState<{
+        title?: string;
+        content: string;
+        mood: MoodType;
+    } | null>(null);
+
+    // Animations
+    const fadeAnim = useState(new Animated.Value(0))[0];
+    const slideAnim = useState(new Animated.Value(20))[0];
+    const scaleAnim = useState(new Animated.Value(0.9))[0];
+
     useEffect(() => {
         loadEntries();
     }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            // Refresh data when screen comes into focus
+            if (entries.length > 0) {
+                loadEntries();
+            }
+        }, [entries.length])
+    );
+
+    useEffect(() => {
+        filterEntries();
+        calculateMoodStats();
+    }, [entries, searchQuery, selectedMoodFilter]);
 
     const loadEntries = async () => {
         if (!user) {
@@ -65,10 +113,30 @@ export default function JournalScreen() {
 
         try {
             setLoading(true);
-            console.log('Loading journal entries for user:', user.id);
             const data = await journalService.getEntries();
-            console.log('Loaded entries:', data.length);
             setEntries(data);
+
+            // Animate in when data loads
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(slideAnim, {
+                    toValue: 0,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scaleAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                })
+            ]).start();
         } catch (error) {
             console.error('Error loading entries:', error);
             Alert.alert('Error', 'Failed to load journal entries. Please check your connection.');
@@ -76,6 +144,50 @@ export default function JournalScreen() {
             setLoading(false);
             setRefreshing(false);
         }
+    };
+
+    const filterEntries = () => {
+        let filtered = entries;
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            filtered = filtered.filter(entry =>
+                entry.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                entry.content.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Apply mood filter
+        if (selectedMoodFilter !== 'all') {
+            filtered = filtered.filter(entry => entry.mood === selectedMoodFilter);
+        }
+
+        setFilteredEntries(filtered);
+    };
+
+    const calculateMoodStats = () => {
+        const moodCounts: Record<MoodType, number> = {
+            happy: 0, sad: 0, anxious: 0, peaceful: 0, grateful: 0,
+            reflective: 0, hopeful: 0, tired: 0, excited: 0, neutral: 0
+        };
+
+        entries.forEach(entry => {
+            if (entry.mood && moodCounts[entry.mood as MoodType] !== undefined) {
+                moodCounts[entry.mood as MoodType]++;
+            }
+        });
+
+        const totalEntries = entries.length;
+        const stats: MoodStats[] = Object.entries(moodCounts)
+            .filter(([_, count]) => count > 0)
+            .map(([mood, count]) => ({
+                mood: mood as MoodType,
+                count,
+                percentage: totalEntries > 0 ? (count / totalEntries) * 100 : 0
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        setMoodStats(stats);
     };
 
     const handleRefresh = () => {
@@ -89,21 +201,75 @@ export default function JournalScreen() {
             setTitle(entry.title || '');
             setContent(entry.content);
             setSelectedMood((entry.mood as MoodType) || 'neutral');
+            // Store original values for comparison
+            setOriginalEntry({
+                title: entry.title || '',
+                content: entry.content,
+                mood: (entry.mood as MoodType) || 'neutral'
+            });
         } else {
             setEditingEntry(null);
             setTitle('');
             setContent('');
             setSelectedMood('neutral');
+            setOriginalEntry(null);
         }
         setShowEditor(true);
     };
 
-    const closeEditor = () => {
-        setShowEditor(false);
+    const closeEditor = (forceClose: boolean = false) => {
+        // If we're saving or force closing, don't show the warning
+        if (saving || forceClose) {
+            setShowEditor(false);
+            resetEditor();
+            return;
+        }
+
+        // Check if there are unsaved changes
+        const hasUnsavedChanges = checkForUnsavedChanges();
+
+        if (hasUnsavedChanges) {
+            Alert.alert(
+                'Unsaved Changes',
+                'You have unsaved changes. Are you sure you want to discard them?',
+                [
+                    { text: 'Keep Editing', style: 'cancel' },
+                    {
+                        text: 'Discard',
+                        style: 'destructive',
+                        onPress: () => {
+                            setShowEditor(false);
+                            resetEditor();
+                        }
+                    },
+                ]
+            );
+        } else {
+            // No unsaved changes, just close
+            setShowEditor(false);
+            resetEditor();
+        }
+    };
+
+    const checkForUnsavedChanges = (): boolean => {
+        if (editingEntry && originalEntry) {
+            // Check if any field has changed when editing
+            return title !== originalEntry.title ||
+                content !== originalEntry.content ||
+                selectedMood !== originalEntry.mood;
+        } else {
+            // For new entries, check if there's any content
+            return content.trim().length > 0 || title.trim().length > 0;
+        }
+    };
+
+    const resetEditor = () => {
         setEditingEntry(null);
         setTitle('');
         setContent('');
         setSelectedMood('neutral');
+        setSaving(false);
+        setOriginalEntry(null);
     };
 
     const saveEntry = async () => {
@@ -123,35 +289,21 @@ export default function JournalScreen() {
                 title: title.trim() || undefined,
                 content: content.trim(),
                 mood: selectedMood,
-                tags: [], // Simple tags for now
+                tags: [],
             };
-
-            console.log('Saving entry:', entryData);
 
             if (editingEntry) {
                 await journalService.updateEntry(editingEntry.id, entryData);
-                Alert.alert('Success', 'Journal entry updated successfully');
             } else {
                 await journalService.createEntry(entryData);
-                Alert.alert('Success', 'Journal entry saved successfully');
             }
 
-            closeEditor();
-            loadEntries(); // Refresh the list
+            // Use forceClose to bypass the unsaved changes warning
+            closeEditor(true);
+            loadEntries();
         } catch (error: any) {
             console.error('Error saving entry:', error);
-
-            // More specific error messages
-            if (error.code === 'PGRST204') {
-                Alert.alert(
-                    'Database Error',
-                    'The journal feature is not properly set up. Please contact support.'
-                );
-            } else if (error.message?.includes('network') || error.code === 'NETWORK_ERROR') {
-                Alert.alert('Network Error', 'Please check your internet connection and try again.');
-            } else {
-                Alert.alert('Error', 'Failed to save journal entry. Please try again.');
-            }
+            Alert.alert('Error', 'Failed to save journal entry. Please try again.');
         } finally {
             setSaving(false);
         }
@@ -169,7 +321,6 @@ export default function JournalScreen() {
                     onPress: async () => {
                         try {
                             await journalService.deleteEntry(entry.id);
-                            Alert.alert('Success', 'Journal entry deleted successfully');
                             loadEntries();
                         } catch (error) {
                             console.error('Error deleting entry:', error);
@@ -181,7 +332,6 @@ export default function JournalScreen() {
         );
     };
 
-    // FIXED: Properly typed mood icons
     const getMoodIcon = (mood: MoodType): MoodIconName => {
         const moodIcons: Record<MoodType, MoodIconName> = {
             happy: 'happy-outline',
@@ -200,15 +350,15 @@ export default function JournalScreen() {
 
     const getMoodColor = (mood: MoodType) => {
         const moodColors = {
-            happy: '#10B981', // green
-            sad: '#3B82F6',   // blue
-            anxious: '#F59E0B', // amber
-            peaceful: '#8B5CF6', // violet
-            grateful: '#EC4899', // pink
-            reflective: '#06B6D4', // cyan
-            hopeful: '#84CC16', // lime
-            tired: '#6B7280', // gray
-            excited: '#DC2626', // red
+            happy: '#10B981',
+            sad: '#3B82F6',
+            anxious: '#F59E0B',
+            peaceful: '#8B5CF6',
+            grateful: '#EC4899',
+            reflective: '#06B6D4',
+            hopeful: '#84CC16',
+            tired: '#6B7280',
+            excited: '#DC2626',
             neutral: theme.colors.textSecondary,
         };
         return moodColors[mood];
@@ -216,20 +366,44 @@ export default function JournalScreen() {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) {
+            return 'Today';
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return 'Yesterday';
+        } else {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+            });
+        }
+    };
+
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
         });
     };
 
-    // Mood options for the selector
+    const getWordCount = (text: string) => {
+        return text.trim() ? text.trim().split(/\s+/).length : 0;
+    };
+
     const moodOptions: MoodType[] = [
         'happy', 'sad', 'anxious', 'peaceful', 'grateful',
         'reflective', 'hopeful', 'tired', 'excited', 'neutral'
     ];
 
-    if (loading) {
+    const moodFilterOptions: (MoodType | 'all')[] = ['all', ...moodOptions];
+
+    if (loading && entries.length === 0) {
         return (
             <View style={[theme.screen, { justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
@@ -242,33 +416,157 @@ export default function JournalScreen() {
 
     return (
         <View style={theme.screen}>
+            <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+
             {/* Header */}
-            <View style={[theme.rowBetween, {
+            <View style={{
                 paddingHorizontal: theme.Spacing.md,
                 paddingVertical: theme.Spacing.lg,
                 borderBottomWidth: 1,
                 borderBottomColor: theme.colors.border,
-            }]}>
-                <Text style={{
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    color: theme.colors.text,
-                }}>
-                    My Journal
-                </Text>
-                <TouchableOpacity
-                    onPress={() => openEditor()}
-                    style={[theme.button, { flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }]}
+            }}>
+                <View style={[theme.rowBetween, { marginBottom: theme.Spacing.sm }]}>
+                    <Text style={{
+                        fontSize: 28,
+                        fontWeight: 'bold',
+                        color: theme.colors.text,
+                    }}>
+                        My Journal
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: theme.Spacing.sm }}>
+                        <TouchableOpacity
+                            onPress={() => setShowStats(true)}
+                            style={{
+                                padding: theme.Spacing.sm,
+                                backgroundColor: theme.colors.accentPrimary + '15',
+                                borderRadius: theme.BorderRadius.round,
+                            }}
+                        >
+                            <Ionicons name="stats-chart-outline" size={20} color={theme.colors.accentPrimary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setShowSearch(!showSearch)}
+                            style={{
+                                padding: theme.Spacing.sm,
+                                backgroundColor: theme.colors.accentPrimary + '15',
+                                borderRadius: theme.BorderRadius.round,
+                            }}
+                        >
+                            <Ionicons name="search-outline" size={20} color={theme.colors.accentPrimary} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Search Bar */}
+                {showSearch && (
+                    <Animated.View
+                        style={{
+                            marginTop: theme.Spacing.sm,
+                        }}
+                    >
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: theme.colors.backgroundCard,
+                            borderRadius: theme.BorderRadius.md,
+                            paddingHorizontal: theme.Spacing.md,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                        }}>
+                            <Ionicons name="search-outline" size={18} color={theme.colors.textSecondary} />
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    padding: theme.Spacing.md,
+                                    fontSize: 16,
+                                    color: theme.colors.text,
+                                }}
+                                placeholder="Search journal entries..."
+                                placeholderTextColor={theme.colors.textSecondary}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                            {searchQuery ? (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Ionicons name="close-outline" size={18} color={theme.colors.textSecondary} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    </Animated.View>
+                )}
+
+                {/* Mood Filter */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginTop: theme.Spacing.sm }}
+                    contentContainerStyle={{ paddingRight: theme.Spacing.md }}
                 >
-                    <Ionicons name="add" size={20} color={theme.colors.textInverse} />
-                    <Text style={theme.buttonText}>New Entry</Text>
-                </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: theme.Spacing.xs }}>
+                        {moodFilterOptions.map((mood) => (
+                            <TouchableOpacity
+                                key={mood}
+                                onPress={() => setSelectedMoodFilter(mood)}
+                                style={{
+                                    paddingHorizontal: theme.Spacing.md,
+                                    paddingVertical: theme.Spacing.xs,
+                                    borderRadius: theme.BorderRadius.round,
+                                    backgroundColor: selectedMoodFilter === mood
+                                        ? mood === 'all' ? theme.colors.accentPrimary : getMoodColor(mood as MoodType)
+                                        : theme.colors.backgroundCard,
+                                    borderWidth: 1,
+                                    borderColor: selectedMoodFilter === mood
+                                        ? 'transparent'
+                                        : theme.colors.border,
+                                }}
+                            >
+                                <Text style={{
+                                    fontSize: 12,
+                                    fontWeight: '500',
+                                    color: selectedMoodFilter === mood ? theme.colors.textInverse : theme.colors.textSecondary,
+                                    textTransform: 'capitalize',
+                                }}>
+                                    {mood === 'all' ? 'All Moods' : mood}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </ScrollView>
             </View>
 
+            {/* Action Button */}
+            <TouchableOpacity
+                onPress={() => openEditor()}
+                style={[{
+                    position: 'absolute',
+                    bottom: theme.Spacing.xl,
+                    right: theme.Spacing.xl,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: theme.colors.accentPrimary,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 8,
+                    zIndex: 1000,
+                }]}
+            >
+                <Ionicons name="add" size={24} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+
             {/* Journal Entries List */}
-            {entries.length === 0 ? (
+            {filteredEntries.length === 0 ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.Spacing.xl }}>
-                    <Ionicons name="journal-outline" size={64} color={theme.colors.textSecondary} />
+                    <Ionicons
+                        name={searchQuery || selectedMoodFilter !== 'all' ? "search-outline" : "journal-outline"}
+                        size={64}
+                        color={theme.colors.textSecondary}
+                    />
                     <Text style={{
                         fontSize: 18,
                         fontWeight: '600',
@@ -276,7 +574,9 @@ export default function JournalScreen() {
                         marginTop: theme.Spacing.lg,
                         textAlign: 'center',
                     }}>
-                        No journal entries yet
+                        {searchQuery ? 'No matching entries' :
+                            selectedMoodFilter !== 'all' ? `No ${selectedMoodFilter} entries` :
+                                'No journal entries yet'}
                     </Text>
                     <Text style={{
                         fontSize: 14,
@@ -285,17 +585,21 @@ export default function JournalScreen() {
                         textAlign: 'center',
                         lineHeight: 20,
                     }}>
-                        Start writing your thoughts and reflections.{'\n'}Your journal is private and secure.
+                        {searchQuery ? 'Try a different search term' :
+                            selectedMoodFilter !== 'all' ? 'Try selecting a different mood filter' :
+                                'Start writing your thoughts and reflections.\nYour journal is private and secure.'}
                     </Text>
-                    <TouchableOpacity
-                        onPress={() => openEditor()}
-                        style={[theme.button, { marginTop: theme.Spacing.lg }]}
-                    >
-                        <Text style={theme.buttonText}>Write Your First Entry</Text>
-                    </TouchableOpacity>
+                    {!searchQuery && selectedMoodFilter === 'all' && (
+                        <TouchableOpacity
+                            onPress={() => openEditor()}
+                            style={[theme.button, { marginTop: theme.Spacing.lg }]}
+                        >
+                            <Text style={theme.buttonText}>Write Your First Entry</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             ) : (
-                <ScrollView
+                <Animated.ScrollView
                     style={{ flex: 1 }}
                     refreshControl={
                         <RefreshControl
@@ -305,69 +609,110 @@ export default function JournalScreen() {
                             tintColor={theme.colors.accentPrimary}
                         />
                     }
-                    contentContainerStyle={{ padding: theme.Spacing.md }}
+                    contentContainerStyle={{ padding: theme.Spacing.md, paddingBottom: 100 }}
+                    showsVerticalScrollIndicator={false}
                 >
-                    {entries.map((entry) => (
-                        <TouchableOpacity
+                    {filteredEntries.map((entry, index) => (
+                        <Animated.View
                             key={entry.id}
-                            style={[theme.card, { marginBottom: theme.Spacing.md }]}
-                            onPress={() => openEditor(entry)}
-                            onLongPress={() => deleteEntry(entry)}
+                            style={[
+                                theme.card,
+                                {
+                                    marginBottom: theme.Spacing.md,
+                                    opacity: fadeAnim,
+                                    transform: [
+                                        { translateY: slideAnim },
+                                        { scale: scaleAnim }
+                                    ],
+                                }
+                            ]}
                         >
-                            <View style={[theme.rowBetween, { marginBottom: theme.Spacing.sm }]}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
-                                    <Ionicons
-                                        name={getMoodIcon((entry.mood as MoodType) || 'neutral')}
-                                        size={16}
-                                        color={getMoodColor((entry.mood as MoodType) || 'neutral')}
-                                    />
+                            <TouchableOpacity
+                                onPress={() => openEditor(entry)}
+                                onLongPress={() => deleteEntry(entry)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[theme.rowBetween, { marginBottom: theme.Spacing.sm }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
+                                        <Ionicons
+                                            name={getMoodIcon((entry.mood as MoodType) || 'neutral')}
+                                            size={16}
+                                            color={getMoodColor((entry.mood as MoodType) || 'neutral')}
+                                        />
+                                        <Text style={{
+                                            fontSize: 12,
+                                            color: getMoodColor((entry.mood as MoodType) || 'neutral'),
+                                            fontWeight: '600',
+                                            textTransform: 'capitalize',
+                                        }}>
+                                            {(entry.mood as MoodType) || 'neutral'}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                                        <Text style={{
+                                            fontSize: 11,
+                                            color: theme.colors.textSecondary,
+                                        }}>
+                                            {formatTime(entry.created_at)}
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => deleteEntry(entry)}
+                                            style={{ padding: theme.Spacing.xs }}
+                                        >
+                                            <Ionicons name="trash-outline" size={14} color={theme.colors.textSecondary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <Text style={{
+                                    fontSize: 12,
+                                    color: theme.colors.textSecondary,
+                                    marginBottom: theme.Spacing.sm,
+                                    fontWeight: '500',
+                                }}>
+                                    {formatDate(entry.created_at)}
+                                </Text>
+
+                                {entry.title && (
                                     <Text style={{
-                                        fontSize: 12,
-                                        color: theme.colors.textSecondary,
-                                        fontWeight: '500',
-                                        textTransform: 'capitalize',
+                                        fontSize: 18,
+                                        fontWeight: '600',
+                                        color: theme.colors.text,
+                                        marginBottom: theme.Spacing.xs,
                                     }}>
-                                        {(entry.mood as MoodType) || 'neutral'}
+                                        {entry.title}
+                                    </Text>
+                                )}
+
+                                <Text
+                                    style={{
+                                        fontSize: 14,
+                                        color: theme.colors.text,
+                                        lineHeight: 20,
+                                    }}
+                                    numberOfLines={4}
+                                >
+                                    {entry.content}
+                                </Text>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: theme.Spacing.sm }}>
+                                    <Text style={{
+                                        fontSize: 11,
+                                        color: theme.colors.textSecondary,
+                                    }}>
+                                        {getWordCount(entry.content)} words
                                     </Text>
                                     <Text style={{
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         color: theme.colors.textSecondary,
                                     }}>
-                                        • {formatDate(entry.created_at)}
+                                        Read more
                                     </Text>
                                 </View>
-                                <TouchableOpacity
-                                    onPress={() => deleteEntry(entry)}
-                                    style={{ padding: theme.Spacing.xs }}
-                                >
-                                    <Ionicons name="trash-outline" size={16} color={theme.colors.textSecondary} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {entry.title && (
-                                <Text style={{
-                                    fontSize: 18,
-                                    fontWeight: '600',
-                                    color: theme.colors.text,
-                                    marginBottom: theme.Spacing.xs,
-                                }}>
-                                    {entry.title}
-                                </Text>
-                            )}
-
-                            <Text
-                                style={{
-                                    fontSize: 14,
-                                    color: theme.colors.text,
-                                    lineHeight: 20,
-                                }}
-                                numberOfLines={3}
-                            >
-                                {entry.content}
-                            </Text>
-                        </TouchableOpacity>
+                            </TouchableOpacity>
+                        </Animated.View>
                     ))}
-                </ScrollView>
+                </Animated.ScrollView>
             )}
 
             {/* Journal Editor Modal */}
@@ -375,7 +720,7 @@ export default function JournalScreen() {
                 visible={showEditor}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={closeEditor}
+                onRequestClose={() => closeEditor()}
             >
                 <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
                     {/* Editor Header */}
@@ -385,7 +730,10 @@ export default function JournalScreen() {
                         borderBottomWidth: 1,
                         borderBottomColor: theme.colors.border,
                     }]}>
-                        <TouchableOpacity onPress={closeEditor} disabled={saving}>
+                        <TouchableOpacity
+                            onPress={() => closeEditor()}
+                            disabled={saving}
+                        >
                             <Text style={{
                                 color: saving ? theme.colors.textSecondary : theme.colors.text,
                                 fontSize: 16
@@ -394,11 +742,19 @@ export default function JournalScreen() {
                             </Text>
                         </TouchableOpacity>
 
-                        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
-                            {editingEntry ? 'Edit Entry' : 'New Entry'}
-                        </Text>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+                                {editingEntry ? 'Edit Entry' : 'New Entry'}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                                {getWordCount(content)} words
+                            </Text>
+                        </View>
 
-                        <TouchableOpacity onPress={saveEntry} disabled={saving || !content.trim()}>
+                        <TouchableOpacity
+                            onPress={saveEntry}
+                            disabled={saving || !content.trim()}
+                        >
                             {saving ? (
                                 <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
                             ) : (
@@ -407,7 +763,7 @@ export default function JournalScreen() {
                                     fontSize: 16,
                                     fontWeight: '600'
                                 }}>
-                                    Save
+                                    {editingEntry ? 'Update' : 'Save'}
                                 </Text>
                             )}
                         </TouchableOpacity>
@@ -423,9 +779,10 @@ export default function JournalScreen() {
                                 borderColor: theme.colors.border,
                                 borderRadius: theme.BorderRadius.md,
                                 padding: theme.Spacing.md,
-                                fontSize: 16,
+                                fontSize: 18,
                                 color: theme.colors.text,
                                 marginBottom: theme.Spacing.lg,
+                                fontWeight: '600',
                             }]}
                             placeholder="Title (optional)"
                             placeholderTextColor={theme.colors.textSecondary}
@@ -463,7 +820,7 @@ export default function JournalScreen() {
                                             backgroundColor: selectedMood === mood
                                                 ? getMoodColor(mood) + '20'
                                                 : 'transparent',
-                                            borderWidth: 1,
+                                            borderWidth: 2,
                                             borderColor: selectedMood === mood
                                                 ? getMoodColor(mood)
                                                 : theme.colors.border,
@@ -497,16 +854,92 @@ export default function JournalScreen() {
                                 padding: theme.Spacing.md,
                                 fontSize: 16,
                                 color: theme.colors.text,
-                                minHeight: 200,
+                                minHeight: 300,
                                 textAlignVertical: 'top',
+                                lineHeight: 24,
                             }]}
                             placeholder="Write your thoughts here... (required)"
                             placeholderTextColor={theme.colors.textSecondary}
                             value={content}
                             onChangeText={setContent}
                             multiline
-                            numberOfLines={10}
+                            numberOfLines={15}
                         />
+                    </ScrollView>
+                </View>
+            </Modal>
+
+            {/* Mood Statistics Modal */}
+            <Modal
+                visible={showStats}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowStats(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+                    <View style={[theme.rowBetween, {
+                        paddingHorizontal: theme.Spacing.md,
+                        paddingVertical: theme.Spacing.lg,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.colors.border,
+                    }]}>
+                        <Text style={{ fontSize: 20, fontWeight: '600', color: theme.colors.text }}>
+                            Mood Insights
+                        </Text>
+                        <TouchableOpacity onPress={() => setShowStats(false)}>
+                            <Ionicons name="close-outline" size={24} color={theme.colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={{ flex: 1, padding: theme.Spacing.md }}>
+                        <View style={[theme.card, { marginBottom: theme.Spacing.lg }]}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: theme.Spacing.md }}>
+                                Total Entries: {entries.length}
+                            </Text>
+
+                            {moodStats.map((stat, index) => (
+                                <View key={stat.mood} style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    marginBottom: theme.Spacing.md,
+                                    padding: theme.Spacing.sm,
+                                    backgroundColor: getMoodColor(stat.mood) + '10',
+                                    borderRadius: theme.BorderRadius.md,
+                                }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm, flex: 1 }}>
+                                        <Ionicons
+                                            name={getMoodIcon(stat.mood)}
+                                            size={20}
+                                            color={getMoodColor(stat.mood)}
+                                        />
+                                        <Text style={{
+                                            fontSize: 14,
+                                            fontWeight: '500',
+                                            color: getMoodColor(stat.mood),
+                                            textTransform: 'capitalize',
+                                            flex: 1,
+                                        }}>
+                                            {stat.mood}
+                                        </Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text }}>
+                                            {stat.count} {stat.count === 1 ? 'entry' : 'entries'}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                                            {stat.percentage.toFixed(1)}%
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+
+                            {moodStats.length === 0 && (
+                                <Text style={{ textAlign: 'center', color: theme.colors.textSecondary, padding: theme.Spacing.lg }}>
+                                    No mood data available yet. Start writing to see insights!
+                                </Text>
+                            )}
+                        </View>
                     </ScrollView>
                 </View>
             </Modal>
