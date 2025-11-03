@@ -1,5 +1,5 @@
 // app/(tabs)/PrayerRoomScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,14 +10,20 @@ import {
     Alert,
     ActivityIndicator,
     RefreshControl,
+    Animated,
+    Easing,
+    Dimensions,
+    StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { prayerService } from '../../services/prayerService';
 import { PrayerRequest, CuratedPrayer, CreatePrayerRequest } from '../../types/prayer';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Define valid icon names
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 type PrayerIconName =
     | 'heart-outline'
     | 'heart'
@@ -28,41 +34,132 @@ type PrayerIconName =
     | 'time-outline'
     | 'close-circle-outline'
     | 'hand-left-outline'
-    | 'stats-chart-outline';
+    | 'stats-chart-outline'
+    | 'search-outline'
+    | 'close-outline'
+    | 'filter-outline'
+    | 'sparkles'
+    | 'library-outline'
+    | 'globe-outline'
+    | 'person-outline';
 
-// Updated tab order: Curated first, then Community, then My Prayers
 type TabType = 'curated' | 'community' | 'my-prayers';
+
+interface PrayerStats {
+    prayedCount: number;
+    pendingCount: number;
+    approvedCount: number;
+}
+
+interface TabCard {
+    id: TabType;
+    title: string;
+    subtitle: string;
+    icon: PrayerIconName;
+    count: number;
+    color: string;
+    gradient: string[];
+}
 
 export default function PrayerRoomScreen() {
     const theme = useTheme();
     const { user } = useAuth();
 
-    // Updated default tab to 'curated'
     const [activeTab, setActiveTab] = useState<TabType>('curated');
     const [communityPrayers, setCommunityPrayers] = useState<PrayerRequest[]>([]);
     const [curatedPrayers, setCuratedPrayers] = useState<CuratedPrayer[]>([]);
     const [myPrayers, setMyPrayers] = useState<PrayerRequest[]>([]);
+    const [filteredPrayers, setFilteredPrayers] = useState<PrayerRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [showPrayerModal, setShowPrayerModal] = useState(false);
     const [prayingFor, setPrayingFor] = useState<{ [key: string]: boolean }>({});
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     // Prayer submission state
     const [prayerTitle, setPrayerTitle] = useState('');
     const [prayerContent, setPrayerContent] = useState('');
     const [isAnonymous, setIsAnonymous] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
+
+    // Track original values for modal close confirmation
+    const [originalPrayerData, setOriginalPrayerData] = useState<{
+        title: string;
+        content: string;
+        isAnonymous: boolean;
+    } | null>(null);
 
     // Stats
-    const [stats, setStats] = useState({
+    const [stats, setStats] = useState<PrayerStats>({
         prayedCount: 0,
         pendingCount: 0,
         approvedCount: 0,
     });
 
+    // Animations
+    const fadeAnim = useState(new Animated.Value(0))[0];
+    const slideAnim = useState(new Animated.Value(20))[0];
+    const scaleAnim = useState(new Animated.Value(0.9))[0];
+    const statsPulse = useState(new Animated.Value(1))[0];
+    const cardScale = useState(new Animated.Value(1))[0];
+
+    // Tab cards data
+    const [tabCards, setTabCards] = useState<TabCard[]>([
+        {
+            id: 'curated',
+            title: 'Curated Prayers',
+            subtitle: 'Inspirational prayers & scriptures',
+            icon: 'library-outline',
+            count: 0,
+            color: '#8B5CF6', // Purple
+            gradient: ['#8B5CF6', '#7C3AED']
+        },
+        {
+            id: 'community',
+            title: 'Community Prayers',
+            subtitle: 'Pray for others in need',
+            icon: 'globe-outline',
+            count: 0,
+            color: '#10B981', // Green
+            gradient: ['#10B981', '#059669']
+        },
+        {
+            id: 'my-prayers',
+            title: 'My Prayers',
+            subtitle: 'Your prayer requests',
+            icon: 'person-outline',
+            count: 0,
+            color: '#3B82F6', // Blue
+            gradient: ['#3B82F6', '#2563EB']
+        }
+    ]);
+
     useEffect(() => {
         loadData();
     }, [activeTab]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (communityPrayers.length > 0 || curatedPrayers.length > 0 || myPrayers.length > 0) {
+                loadData();
+            }
+        }, [communityPrayers.length, curatedPrayers.length, myPrayers.length])
+    );
+
+    useEffect(() => {
+        filterPrayers();
+        updateTabCounts();
+    }, [communityPrayers, myPrayers, curatedPrayers, searchQuery, activeTab]);
+
+    const updateTabCounts = () => {
+        setTabCards(prev => prev.map(card => ({
+            ...card,
+            count: card.id === 'curated' ? curatedPrayers.length :
+                card.id === 'community' ? communityPrayers.length :
+                    myPrayers.length
+        })));
+    };
 
     const loadData = async () => {
         if (!user) return;
@@ -70,25 +167,55 @@ export default function PrayerRoomScreen() {
         try {
             setLoading(true);
 
-            // Load data based on active tab - updated order
-            switch (activeTab) {
-                case 'curated':
-                    const curatedData = await prayerService.getCuratedPrayers();
-                    setCuratedPrayers(curatedData);
-                    break;
-                case 'community':
-                    const communityData = await prayerService.getApprovedPrayers();
-                    setCommunityPrayers(communityData);
-                    break;
-                case 'my-prayers':
-                    const myPrayersData = await prayerService.getUserPrayers();
-                    setMyPrayers(myPrayersData);
-                    break;
-            }
+            // Load all data in parallel for better performance
+            const [curatedData, communityData, myPrayersData, prayerStats] = await Promise.all([
+                prayerService.getCuratedPrayers(),
+                prayerService.getApprovedPrayers(),
+                prayerService.getUserPrayers(),
+                prayerService.getPrayerStats()
+            ]);
 
-            // Load stats
-            const prayerStats = await prayerService.getPrayerStats();
+            setCuratedPrayers(curatedData);
+            setCommunityPrayers(communityData);
+            setMyPrayers(myPrayersData);
             setStats(prayerStats);
+
+            // Animate in when data loads
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(slideAnim, {
+                    toValue: 0,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scaleAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                })
+            ]).start();
+
+            // Pulse animation for stats when they update
+            Animated.sequence([
+                Animated.timing(statsPulse, {
+                    toValue: 1.2,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(statsPulse, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                })
+            ]).start();
+
         } catch (error) {
             console.error('Error loading prayer data:', error);
             Alert.alert('Error', 'Failed to load prayer data');
@@ -98,9 +225,42 @@ export default function PrayerRoomScreen() {
         }
     };
 
+    const filterPrayers = () => {
+        if (!searchQuery.trim()) {
+            setFilteredPrayers(activeTab === 'community' ? communityPrayers : myPrayers);
+            return;
+        }
+
+        const prayersToFilter = activeTab === 'community' ? communityPrayers : myPrayers;
+        const filtered = prayersToFilter.filter(prayer =>
+            prayer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            prayer.content.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        setFilteredPrayers(filtered);
+    };
+
     const handleRefresh = () => {
         setRefreshing(true);
         loadData();
+    };
+
+    const handleTabPress = (tabId: TabType) => {
+        // Scale animation for tab press
+        Animated.sequence([
+            Animated.timing(cardScale, {
+                toValue: 0.95,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(cardScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            })
+        ]).start();
+
+        setActiveTab(tabId);
     };
 
     const handlePrayFor = async (prayerId: string) => {
@@ -114,7 +274,7 @@ export default function PrayerRoomScreen() {
         try {
             await prayerService.prayForRequest(prayerId);
 
-            // Update local state
+            // Update local state with animation
             setCommunityPrayers(prev =>
                 prev.map(prayer =>
                     prayer.id === prayerId
@@ -123,9 +283,10 @@ export default function PrayerRoomScreen() {
                 )
             );
 
-            // Update stats
+            // Update stats with animation
             setStats(prev => ({ ...prev, prayedCount: prev.prayedCount + 1 }));
 
+            // Show success feedback
             Alert.alert('Thank You', 'Your prayer has been counted 🙏');
         } catch (error) {
             console.error('Error praying for request:', error);
@@ -133,6 +294,62 @@ export default function PrayerRoomScreen() {
         } finally {
             setPrayingFor(prev => ({ ...prev, [prayerId]: false }));
         }
+    };
+
+    const openPrayerModal = () => {
+        setOriginalPrayerData({
+            title: prayerTitle,
+            content: prayerContent,
+            isAnonymous
+        });
+        setShowPrayerModal(true);
+    };
+
+    const closePrayerModal = (forceClose: boolean = false) => {
+        if (submitting || forceClose) {
+            setShowPrayerModal(false);
+            resetPrayerForm();
+            return;
+        }
+
+        const hasUnsavedChanges = checkForUnsavedPrayerChanges();
+
+        if (hasUnsavedChanges) {
+            Alert.alert(
+                'Unsaved Changes',
+                'You have unsaved changes. Are you sure you want to discard them?',
+                [
+                    { text: 'Keep Editing', style: 'cancel' },
+                    {
+                        text: 'Discard',
+                        style: 'destructive',
+                        onPress: () => {
+                            setShowPrayerModal(false);
+                            resetPrayerForm();
+                        }
+                    },
+                ]
+            );
+        } else {
+            setShowPrayerModal(false);
+            resetPrayerForm();
+        }
+    };
+
+    const checkForUnsavedPrayerChanges = (): boolean => {
+        if (!originalPrayerData) return false;
+
+        return prayerTitle !== originalPrayerData.title ||
+            prayerContent !== originalPrayerData.content ||
+            isAnonymous !== originalPrayerData.isAnonymous;
+    };
+
+    const resetPrayerForm = () => {
+        setPrayerTitle('');
+        setPrayerContent('');
+        setIsAnonymous(true);
+        setSubmitting(false);
+        setOriginalPrayerData(null);
     };
 
     const submitPrayerRequest = async () => {
@@ -161,13 +378,7 @@ export default function PrayerRoomScreen() {
                 'Your prayer request has been submitted for review. It will be visible to others once approved.'
             );
 
-            // Reset form
-            setPrayerTitle('');
-            setPrayerContent('');
-            setIsAnonymous(true);
-            setShowPrayerModal(false);
-
-            // Refresh data
+            closePrayerModal(true);
             loadData();
         } catch (error) {
             console.error('Error submitting prayer:', error);
@@ -197,9 +408,29 @@ export default function PrayerRoomScreen() {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) {
+            return 'Today';
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return 'Yesterday';
+        } else {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+            });
+        }
+    };
+
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
         });
     };
 
@@ -208,8 +439,100 @@ export default function PrayerRoomScreen() {
         return prayer.profiles?.display_name || 'User';
     };
 
+    const getWordCount = (text: string) => {
+        return text.trim() ? text.trim().split(/\s+/).length : 0;
+    };
+
+    const renderTabCard = (tab: TabCard) => {
+        const isActive = activeTab === tab.id;
+
+        return (
+            <TouchableOpacity
+                key={tab.id}
+                onPress={() => handleTabPress(tab.id)}
+                style={{
+                    flex: 1,
+                    backgroundColor: isActive ? tab.color + '20' : theme.colors.backgroundCard,
+                    borderRadius: theme.BorderRadius.lg,
+                    padding: theme.Spacing.md,
+                    marginHorizontal: theme.Spacing.xs,
+                    borderWidth: 2,
+                    borderColor: isActive ? tab.color : theme.colors.border,
+                    shadowColor: isActive ? tab.color : '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isActive ? 0.2 : 0.1,
+                    shadowRadius: isActive ? 8 : 4,
+                    elevation: isActive ? 4 : 2,
+                }}
+            >
+                <View style={{ alignItems: 'center' }}>
+                    <View style={{
+                        backgroundColor: tab.color + '20',
+                        padding: theme.Spacing.sm,
+                        borderRadius: theme.BorderRadius.round,
+                        marginBottom: theme.Spacing.sm,
+                    }}>
+                        <Ionicons
+                            name={tab.icon}
+                            size={20}
+                            color={isActive ? tab.color : theme.colors.textSecondary}
+                        />
+                    </View>
+
+                    <Text style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: isActive ? tab.color : theme.colors.text,
+                        textAlign: 'center',
+                        marginBottom: 2,
+                    }}>
+                        {tab.title}
+                    </Text>
+
+                    <Text style={{
+                        fontSize: 10,
+                        color: isActive ? tab.color : theme.colors.textSecondary,
+                        textAlign: 'center',
+                        marginBottom: theme.Spacing.xs,
+                        lineHeight: 12,
+                    }}>
+                        {tab.subtitle}
+                    </Text>
+
+                    <View style={{
+                        backgroundColor: isActive ? tab.color : theme.colors.background,
+                        paddingHorizontal: theme.Spacing.sm,
+                        paddingVertical: 2,
+                        borderRadius: theme.BorderRadius.round,
+                    }}>
+                        <Text style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: isActive ? theme.colors.textInverse : theme.colors.textSecondary,
+                        }}>
+                            {tab.count}
+                        </Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
     const renderPrayerCard = (prayer: PrayerRequest, showPrayButton: boolean = true) => (
-        <View key={prayer.id} style={[theme.card, { marginBottom: theme.Spacing.md }]}>
+        <Animated.View
+            key={prayer.id}
+            style={[
+                theme.card,
+                {
+                    marginBottom: theme.Spacing.md,
+                    opacity: fadeAnim,
+                    transform: [
+                        { translateY: slideAnim },
+                        { scale: scaleAnim }
+                    ],
+                }
+            ]}
+        >
             <View style={[theme.rowBetween, { marginBottom: theme.Spacing.sm }]}>
                 <Text style={{
                     fontSize: 16,
@@ -247,12 +570,21 @@ export default function PrayerRoomScreen() {
             </Text>
 
             <View style={[theme.rowBetween, { marginTop: 'auto' }]}>
-                <Text style={{
-                    fontSize: 12,
-                    color: theme.colors.textSecondary,
-                }}>
-                    {getDisplayName(prayer)} • {formatDate(prayer.created_at)}
-                </Text>
+                <View>
+                    <Text style={{
+                        fontSize: 12,
+                        color: theme.colors.textSecondary,
+                        marginBottom: 2,
+                    }}>
+                        {getDisplayName(prayer)} • {formatDate(prayer.created_at)}
+                    </Text>
+                    <Text style={{
+                        fontSize: 11,
+                        color: theme.colors.textSecondary,
+                    }}>
+                        {formatTime(prayer.created_at)} • {getWordCount(prayer.content)} words
+                    </Text>
+                </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.md }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
@@ -266,25 +598,46 @@ export default function PrayerRoomScreen() {
                         <TouchableOpacity
                             onPress={() => handlePrayFor(prayer.id)}
                             disabled={prayingFor[prayer.id]}
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: theme.Spacing.xs,
+                                paddingHorizontal: theme.Spacing.sm,
+                                paddingVertical: 4,
+                                backgroundColor: theme.colors.accentPrimary + '15',
+                                borderRadius: theme.BorderRadius.round,
+                            }}
                         >
                             {prayingFor[prayer.id] ? (
                                 <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
                             ) : (
                                 <Ionicons name="hand-left-outline" size={14} color={theme.colors.accentPrimary} />
                             )}
-                            <Text style={{ fontSize: 12, color: theme.colors.accentPrimary }}>
+                            <Text style={{ fontSize: 12, color: theme.colors.accentPrimary, fontWeight: '500' }}>
                                 Pray
                             </Text>
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
-        </View>
+        </Animated.View>
     );
 
     const renderCuratedPrayerCard = (prayer: CuratedPrayer) => (
-        <View key={prayer.id} style={[theme.card, { marginBottom: theme.Spacing.md }]}>
+        <Animated.View
+            key={prayer.id}
+            style={[
+                theme.card,
+                {
+                    marginBottom: theme.Spacing.md,
+                    opacity: fadeAnim,
+                    transform: [
+                        { translateY: slideAnim },
+                        { scale: scaleAnim }
+                    ],
+                }
+            ]}
+        >
             <View style={{ marginBottom: theme.Spacing.sm }}>
                 <Text style={{
                     fontSize: 16,
@@ -298,6 +651,7 @@ export default function PrayerRoomScreen() {
                         fontSize: 12,
                         color: theme.colors.accentPrimary,
                         marginTop: 2,
+                        fontWeight: '500',
                     }}>
                         {prayer.category}
                     </Text>
@@ -309,19 +663,28 @@ export default function PrayerRoomScreen() {
                 color: theme.colors.text,
                 lineHeight: 20,
                 fontStyle: prayer.type === 'scripture' ? 'normal' : 'italic',
+                marginBottom: theme.Spacing.sm,
             }}>
                 {prayer.content}
             </Text>
 
-            <Text style={{
-                fontSize: 12,
-                color: theme.colors.textSecondary,
-                marginTop: theme.Spacing.sm,
-                textTransform: 'capitalize',
-            }}>
-                {prayer.type}
-            </Text>
-        </View>
+            <View style={[theme.rowBetween, { marginTop: 'auto' }]}>
+                <Text style={{
+                    fontSize: 12,
+                    color: theme.colors.textSecondary,
+                    textTransform: 'capitalize',
+                    fontWeight: '500',
+                }}>
+                    {prayer.type}
+                </Text>
+                <Text style={{
+                    fontSize: 11,
+                    color: theme.colors.textSecondary,
+                }}>
+                    {getWordCount(prayer.content)} words
+                </Text>
+            </View>
+        </Animated.View>
     );
 
     if (loading && !refreshing) {
@@ -337,6 +700,8 @@ export default function PrayerRoomScreen() {
 
     return (
         <View style={theme.screen}>
+            <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+
             {/* Header with Stats */}
             <View style={{
                 paddingHorizontal: theme.Spacing.md,
@@ -346,23 +711,87 @@ export default function PrayerRoomScreen() {
             }}>
                 <View style={[theme.rowBetween, { marginBottom: theme.Spacing.md }]}>
                     <Text style={{
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: 'bold',
                         color: theme.colors.text,
                     }}>
                         Prayer Room
                     </Text>
-                    <TouchableOpacity
-                        onPress={() => setShowPrayerModal(true)}
-                        style={[theme.button, { flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }]}
-                    >
-                        <Ionicons name="add" size={16} color={theme.colors.textInverse} />
-                        <Text style={[theme.buttonText, { fontSize: 14 }]}>Request Prayer</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: theme.Spacing.sm }}>
+                        {(activeTab === 'community' || activeTab === 'my-prayers') && (
+                            <TouchableOpacity
+                                onPress={() => setShowSearch(!showSearch)}
+                                style={{
+                                    padding: theme.Spacing.sm,
+                                    backgroundColor: theme.colors.accentPrimary + '15',
+                                    borderRadius: theme.BorderRadius.round,
+                                }}
+                            >
+                                <Ionicons name="search-outline" size={20} color={theme.colors.accentPrimary} />
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            onPress={openPrayerModal}
+                            style={[theme.button, { flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }]}
+                        >
+                            <Ionicons name="add" size={16} color={theme.colors.textInverse} />
+                            <Text style={[theme.buttonText, { fontSize: 14 }]}>Request Prayer</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Search Bar */}
+                {showSearch && (activeTab === 'community' || activeTab === 'my-prayers') && (
+                    <View style={{
+                        marginBottom: theme.Spacing.md,
+                    }}>
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: theme.colors.backgroundCard,
+                            borderRadius: theme.BorderRadius.md,
+                            paddingHorizontal: theme.Spacing.md,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                        }}>
+                            <Ionicons name="search-outline" size={18} color={theme.colors.textSecondary} />
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    padding: theme.Spacing.md,
+                                    fontSize: 16,
+                                    color: theme.colors.text,
+                                }}
+                                placeholder={`Search ${activeTab === 'community' ? 'community' : 'my'} prayers...`}
+                                placeholderTextColor={theme.colors.textSecondary}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                            {searchQuery ? (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Ionicons name="close-outline" size={18} color={theme.colors.textSecondary} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    </View>
+                )}
+
+                {/* Tab Cards Navigation */}
+                <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    marginBottom: theme.Spacing.md,
+                }}>
+                    {tabCards.map(renderTabCard)}
                 </View>
 
                 {/* Stats */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                <Animated.View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-around',
+                    transform: [{ scale: statsPulse }]
+                }}>
                     <View style={{ alignItems: 'center' }}>
                         <Ionicons name="heart" size={20} color={theme.colors.accentPrimary} />
                         <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginTop: 4 }}>
@@ -390,41 +819,10 @@ export default function PrayerRoomScreen() {
                             Approved
                         </Text>
                     </View>
-                </View>
+                </Animated.View>
             </View>
 
-            {/* Tab Navigation - Updated Order: Curated -> Community -> My Prayers */}
-            <View style={{
-                flexDirection: 'row',
-                borderBottomWidth: 1,
-                borderBottomColor: theme.colors.border,
-            }}>
-                {(['curated', 'community', 'my-prayers'] as TabType[]).map((tab) => (
-                    <TouchableOpacity
-                        key={tab}
-                        onPress={() => setActiveTab(tab)}
-                        style={{
-                            flex: 1,
-                            paddingVertical: theme.Spacing.md,
-                            alignItems: 'center',
-                            borderBottomWidth: 2,
-                            borderBottomColor: activeTab === tab ? theme.colors.accentPrimary : 'transparent',
-                        }}
-                    >
-                        <Text style={{
-                            fontSize: 14,
-                            fontWeight: '600',
-                            color: activeTab === tab ? theme.colors.accentPrimary : theme.colors.textSecondary,
-                        }}>
-                            {tab === 'curated' && 'Curated Prayers'}
-                            {tab === 'community' && 'Community Prayers'}
-                            {tab === 'my-prayers' && 'My Prayers'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {/* Content - Updated Order to Match Tabs */}
+            {/* Content */}
             <ScrollView
                 style={{ flex: 1 }}
                 refreshControl={
@@ -435,9 +833,10 @@ export default function PrayerRoomScreen() {
                         tintColor={theme.colors.accentPrimary}
                     />
                 }
-                contentContainerStyle={{ padding: theme.Spacing.md }}
+                contentContainerStyle={{ padding: theme.Spacing.md, paddingBottom: 80 }}
+                showsVerticalScrollIndicator={false}
             >
-                {/* Curated Prayers First */}
+                {/* Curated Prayers */}
                 {activeTab === 'curated' && (
                     curatedPrayers.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
@@ -456,8 +855,9 @@ export default function PrayerRoomScreen() {
                                 color: theme.colors.textSecondary,
                                 marginTop: theme.Spacing.sm,
                                 textAlign: 'center',
+                                lineHeight: 20,
                             }}>
-                                Check back later for inspirational prayers
+                                Check back later for inspirational prayers and scriptures
                             </Text>
                         </View>
                     ) : (
@@ -465,11 +865,15 @@ export default function PrayerRoomScreen() {
                     )
                 )}
 
-                {/* Community Prayers Second */}
+                {/* Community Prayers */}
                 {activeTab === 'community' && (
-                    communityPrayers.length === 0 ? (
+                    filteredPrayers.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
-                            <Ionicons name="people-outline" size={64} color={theme.colors.textSecondary} />
+                            <Ionicons
+                                name={searchQuery ? "search-outline" : "people-outline"}
+                                size={64}
+                                color={theme.colors.textSecondary}
+                            />
                             <Text style={{
                                 fontSize: 18,
                                 fontWeight: '600',
@@ -477,27 +881,32 @@ export default function PrayerRoomScreen() {
                                 marginTop: theme.Spacing.lg,
                                 textAlign: 'center',
                             }}>
-                                No community prayers yet
+                                {searchQuery ? 'No matching prayers' : 'No community prayers yet'}
                             </Text>
                             <Text style={{
                                 fontSize: 14,
                                 color: theme.colors.textSecondary,
                                 marginTop: theme.Spacing.sm,
                                 textAlign: 'center',
+                                lineHeight: 20,
                             }}>
-                                Be the first to submit a prayer request
+                                {searchQuery ? 'Try a different search term' : 'Be the first to submit a prayer request'}
                             </Text>
                         </View>
                     ) : (
-                        communityPrayers.map(prayer => renderPrayerCard(prayer, true))
+                        filteredPrayers.map(prayer => renderPrayerCard(prayer, true))
                     )
                 )}
 
-                {/* My Prayers Third */}
+                {/* My Prayers */}
                 {activeTab === 'my-prayers' && (
-                    myPrayers.length === 0 ? (
+                    filteredPrayers.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
-                            <Ionicons name="heart-outline" size={64} color={theme.colors.textSecondary} />
+                            <Ionicons
+                                name={searchQuery ? "search-outline" : "heart-outline"}
+                                size={64}
+                                color={theme.colors.textSecondary}
+                            />
                             <Text style={{
                                 fontSize: 18,
                                 fontWeight: '600',
@@ -505,19 +914,20 @@ export default function PrayerRoomScreen() {
                                 marginTop: theme.Spacing.lg,
                                 textAlign: 'center',
                             }}>
-                                No prayer requests yet
+                                {searchQuery ? 'No matching prayers' : 'No prayer requests yet'}
                             </Text>
                             <Text style={{
                                 fontSize: 14,
                                 color: theme.colors.textSecondary,
                                 marginTop: theme.Spacing.sm,
                                 textAlign: 'center',
+                                lineHeight: 20,
                             }}>
-                                Submit your first prayer request
+                                {searchQuery ? 'Try a different search term' : 'Submit your first prayer request'}
                             </Text>
                         </View>
                     ) : (
-                        myPrayers.map(prayer => renderPrayerCard(prayer, false))
+                        filteredPrayers.map(prayer => renderPrayerCard(prayer, false))
                     )
                 )}
             </ScrollView>
@@ -527,7 +937,7 @@ export default function PrayerRoomScreen() {
                 visible={showPrayerModal}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={() => setShowPrayerModal(false)}
+                onRequestClose={() => closePrayerModal()}
             >
                 <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
                     {/* Modal Header */}
@@ -537,7 +947,10 @@ export default function PrayerRoomScreen() {
                         borderBottomWidth: 1,
                         borderBottomColor: theme.colors.border,
                     }]}>
-                        <TouchableOpacity onPress={() => setShowPrayerModal(false)} disabled={submitting}>
+                        <TouchableOpacity
+                            onPress={() => closePrayerModal()}
+                            disabled={submitting}
+                        >
                             <Text style={{
                                 color: submitting ? theme.colors.textSecondary : theme.colors.text,
                                 fontSize: 16
@@ -546,9 +959,14 @@ export default function PrayerRoomScreen() {
                             </Text>
                         </TouchableOpacity>
 
-                        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
-                            Prayer Request
-                        </Text>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 18, fontWeight: '600', color: theme.colors.text }}>
+                                Prayer Request
+                            </Text>
+                            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                                {getWordCount(prayerContent)} words
+                            </Text>
+                        </View>
 
                         <TouchableOpacity
                             onPress={submitPrayerRequest}
@@ -615,16 +1033,17 @@ export default function PrayerRoomScreen() {
                                 padding: theme.Spacing.md,
                                 fontSize: 16,
                                 color: theme.colors.text,
-                                minHeight: 150,
+                                minHeight: 200,
                                 textAlignVertical: 'top',
                                 marginBottom: theme.Spacing.lg,
+                                lineHeight: 20,
                             }]}
                             placeholder="Share your prayer request... (will be reviewed before appearing publicly)"
                             placeholderTextColor={theme.colors.textSecondary}
                             value={prayerContent}
                             onChangeText={setPrayerContent}
                             multiline
-                            numberOfLines={6}
+                            numberOfLines={8}
                         />
 
                         <TouchableOpacity
@@ -649,14 +1068,29 @@ export default function PrayerRoomScreen() {
                             backgroundColor: theme.colors.accentPrimary + '15',
                             padding: theme.Spacing.md,
                             borderRadius: theme.BorderRadius.md,
+                            borderLeftWidth: 4,
+                            borderLeftColor: theme.colors.accentPrimary,
                         }}>
-                            <Text style={{
-                                fontSize: 12,
-                                color: theme.colors.accentPrimary,
-                                lineHeight: 16,
-                            }}>
-                                💫 Your prayer request will be reviewed before appearing publicly to ensure a safe and supportive environment for everyone.
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.Spacing.sm }}>
+                                <Ionicons name="sparkles" size={20} color={theme.colors.accentPrimary} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: theme.colors.accentPrimary,
+                                        marginBottom: 4,
+                                    }}>
+                                        Prayer Submission Guidelines
+                                    </Text>
+                                    <Text style={{
+                                        fontSize: 12,
+                                        color: theme.colors.accentPrimary,
+                                        lineHeight: 16,
+                                    }}>
+                                        Your prayer request will be reviewed before appearing publicly to ensure a safe and supportive environment for everyone.
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
                     </ScrollView>
                 </View>
