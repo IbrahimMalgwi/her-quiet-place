@@ -38,10 +38,7 @@ type PrayerIconName =
     | 'search-outline'
     | 'close-outline'
     | 'filter-outline'
-    | 'sparkles'
-    | 'library-outline'
-    | 'globe-outline'
-    | 'person-outline';
+    | 'sparkles';
 
 type TabType = 'curated' | 'community' | 'my-prayers';
 
@@ -49,16 +46,6 @@ interface PrayerStats {
     prayedCount: number;
     pendingCount: number;
     approvedCount: number;
-}
-
-interface TabCard {
-    id: TabType;
-    title: string;
-    subtitle: string;
-    icon: PrayerIconName;
-    count: number;
-    color: string;
-    gradient: string[];
 }
 
 export default function PrayerRoomScreen() {
@@ -102,38 +89,6 @@ export default function PrayerRoomScreen() {
     const slideAnim = useState(new Animated.Value(20))[0];
     const scaleAnim = useState(new Animated.Value(0.9))[0];
     const statsPulse = useState(new Animated.Value(1))[0];
-    const cardScale = useState(new Animated.Value(1))[0];
-
-    // Tab cards data
-    const [tabCards, setTabCards] = useState<TabCard[]>([
-        {
-            id: 'curated',
-            title: 'Curated Prayers',
-            subtitle: 'Inspirational prayers & scriptures',
-            icon: 'library-outline',
-            count: 0,
-            color: '#8B5CF6', // Purple
-            gradient: ['#8B5CF6', '#7C3AED']
-        },
-        {
-            id: 'community',
-            title: 'Community Prayers',
-            subtitle: 'Pray for others in need',
-            icon: 'globe-outline',
-            count: 0,
-            color: '#10B981', // Green
-            gradient: ['#10B981', '#059669']
-        },
-        {
-            id: 'my-prayers',
-            title: 'My Prayers',
-            subtitle: 'Your prayer requests',
-            icon: 'person-outline',
-            count: 0,
-            color: '#3B82F6', // Blue
-            gradient: ['#3B82F6', '#2563EB']
-        }
-    ]);
 
     useEffect(() => {
         loadData();
@@ -149,17 +104,7 @@ export default function PrayerRoomScreen() {
 
     useEffect(() => {
         filterPrayers();
-        updateTabCounts();
-    }, [communityPrayers, myPrayers, curatedPrayers, searchQuery, activeTab]);
-
-    const updateTabCounts = () => {
-        setTabCards(prev => prev.map(card => ({
-            ...card,
-            count: card.id === 'curated' ? curatedPrayers.length :
-                card.id === 'community' ? communityPrayers.length :
-                    myPrayers.length
-        })));
-    };
+    }, [communityPrayers, myPrayers, searchQuery, activeTab]);
 
     const loadData = async () => {
         if (!user) return;
@@ -243,24 +188,6 @@ export default function PrayerRoomScreen() {
     const handleRefresh = () => {
         setRefreshing(true);
         loadData();
-    };
-
-    const handleTabPress = (tabId: TabType) => {
-        // Scale animation for tab press
-        Animated.sequence([
-            Animated.timing(cardScale, {
-                toValue: 0.95,
-                duration: 100,
-                useNativeDriver: true,
-            }),
-            Animated.timing(cardScale, {
-                toValue: 1,
-                duration: 100,
-                useNativeDriver: true,
-            })
-        ]).start();
-
-        setActiveTab(tabId);
     };
 
     const handlePrayFor = async (prayerId: string) => {
@@ -443,64 +370,89 @@ export default function PrayerRoomScreen() {
         return text.trim() ? text.trim().split(/\s+/).length : 0;
     };
 
-    const renderTabCard = (tab: TabCard) => {
-        const isActive = activeTab === tab.id;
+    const renderTabCard = (tab: TabType) => {
+        const isActive = activeTab === tab;
+        const getTabInfo = () => {
+            switch (tab) {
+                case 'curated':
+                    return {
+                        title: 'Curated Prayers',
+                        subtitle: 'Inspirational prayers & scriptures',
+                        icon: 'book-outline' as PrayerIconName,
+                        color: '#8B5CF6',
+                        count: curatedPrayers.length
+                    };
+                case 'community':
+                    return {
+                        title: 'Community Prayers',
+                        subtitle: 'Pray for others in need',
+                        icon: 'people-outline' as PrayerIconName,
+                        color: '#10B981',
+                        count: communityPrayers.length
+                    };
+                case 'my-prayers':
+                    return {
+                        title: 'My Prayers',
+                        subtitle: 'Your prayer requests',
+                        icon: 'heart-outline' as PrayerIconName,
+                        color: '#3B82F6',
+                        count: myPrayers.length
+                    };
+            }
+        };
+
+        const tabInfo = getTabInfo();
 
         return (
             <TouchableOpacity
-                key={tab.id}
-                onPress={() => handleTabPress(tab.id)}
+                key={tab}
+                onPress={() => setActiveTab(tab)}
                 style={{
                     flex: 1,
-                    backgroundColor: isActive ? tab.color + '20' : theme.colors.backgroundCard,
+                    backgroundColor: isActive ? tabInfo.color + '15' : theme.colors.backgroundCard,
                     borderRadius: theme.BorderRadius.lg,
                     padding: theme.Spacing.md,
                     marginHorizontal: theme.Spacing.xs,
                     borderWidth: 2,
-                    borderColor: isActive ? tab.color : theme.colors.border,
-                    shadowColor: isActive ? tab.color : '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isActive ? 0.2 : 0.1,
-                    shadowRadius: isActive ? 8 : 4,
-                    elevation: isActive ? 4 : 2,
+                    borderColor: isActive ? tabInfo.color : theme.colors.border,
                 }}
             >
                 <View style={{ alignItems: 'center' }}>
                     <View style={{
-                        backgroundColor: tab.color + '20',
+                        backgroundColor: tabInfo.color + '20',
                         padding: theme.Spacing.sm,
                         borderRadius: theme.BorderRadius.round,
                         marginBottom: theme.Spacing.sm,
                     }}>
                         <Ionicons
-                            name={tab.icon}
-                            size={20}
-                            color={isActive ? tab.color : theme.colors.textSecondary}
+                            name={tabInfo.icon}
+                            size={16}
+                            color={isActive ? tabInfo.color : theme.colors.textSecondary}
                         />
                     </View>
 
                     <Text style={{
                         fontSize: 12,
                         fontWeight: '700',
-                        color: isActive ? tab.color : theme.colors.text,
+                        color: isActive ? tabInfo.color : theme.colors.text,
                         textAlign: 'center',
                         marginBottom: 2,
                     }}>
-                        {tab.title}
+                        {tabInfo.title}
                     </Text>
 
                     <Text style={{
                         fontSize: 10,
-                        color: isActive ? tab.color : theme.colors.textSecondary,
+                        color: isActive ? tabInfo.color : theme.colors.textSecondary,
                         textAlign: 'center',
                         marginBottom: theme.Spacing.xs,
                         lineHeight: 12,
                     }}>
-                        {tab.subtitle}
+                        {tabInfo.subtitle}
                     </Text>
 
                     <View style={{
-                        backgroundColor: isActive ? tab.color : theme.colors.background,
+                        backgroundColor: isActive ? tabInfo.color : theme.colors.background,
                         paddingHorizontal: theme.Spacing.sm,
                         paddingVertical: 2,
                         borderRadius: theme.BorderRadius.round,
@@ -510,7 +462,7 @@ export default function PrayerRoomScreen() {
                             fontWeight: '700',
                             color: isActive ? theme.colors.textInverse : theme.colors.textSecondary,
                         }}>
-                            {tab.count}
+                            {tabInfo.count}
                         </Text>
                     </View>
                 </View>
@@ -783,7 +735,7 @@ export default function PrayerRoomScreen() {
                     justifyContent: 'space-between',
                     marginBottom: theme.Spacing.md,
                 }}>
-                    {tabCards.map(renderTabCard)}
+                    {(['curated', 'community', 'my-prayers'] as TabType[]).map(renderTabCard)}
                 </View>
 
                 {/* Stats */}
