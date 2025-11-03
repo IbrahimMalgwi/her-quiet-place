@@ -1,4 +1,3 @@
-// constants/theme.ts
 import { Platform, Dimensions } from "react-native";
 import { useColorScheme } from "react-native";
 
@@ -44,6 +43,10 @@ export const Colors = {
         info: AppColors.info,
         disabled: AppColors.disabled,
         overlay: AppColors.overlay,
+        // ADD MISSING COLORS:
+        black: AppColors.black,
+        white: AppColors.white,
+        transparent: AppColors.transparent,
     },
     dark: {
         background: "#1A1A1A",
@@ -65,6 +68,10 @@ export const Colors = {
         info: "#60A5FA",
         disabled: "#6B7280",
         overlay: "rgba(0, 0, 0, 0.7)",
+        // ADD MISSING COLORS:
+        black: AppColors.black,
+        white: AppColors.white,
+        transparent: AppColors.transparent,
     },
 };
 
@@ -86,6 +93,17 @@ export const BorderRadius = {
     round: 9999,
 };
 
+// Font sizes for consistent typography
+export const FontSizes = {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    xxl: 24,
+    xxxl: 32,
+};
+
 // Simplified useTheme hook
 export const useTheme = () => {
     const colorScheme = useColorScheme() ?? "light";
@@ -96,7 +114,9 @@ export const useTheme = () => {
         colorScheme,
         Spacing,
         BorderRadius,
-        // Simple style generators
+        FontSizes,
+
+        // Layout styles
         screen: {
             flex: 1,
             backgroundColor: colors.background,
@@ -106,6 +126,13 @@ export const useTheme = () => {
             backgroundColor: colors.background,
             padding: Spacing.md,
         },
+        containerHorizontal: {
+            flex: 1,
+            backgroundColor: colors.background,
+            paddingHorizontal: Spacing.md,
+        },
+
+        // Card styles
         card: {
             backgroundColor: colors.backgroundCard,
             borderRadius: BorderRadius.lg,
@@ -113,15 +140,79 @@ export const useTheme = () => {
             borderWidth: 1,
             borderColor: colors.border,
         },
+        cardElevated: {
+            backgroundColor: colors.backgroundCard,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.lg,
+            shadowColor: colors.black, // Now this will work!
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+        },
+
+        // Typography styles
+        title: {
+            fontSize: FontSizes.xxxl,
+            fontWeight: '700' as const,
+            color: colors.text,
+            marginBottom: Spacing.md,
+        },
+        subtitle: {
+            fontSize: FontSizes.xxl,
+            fontWeight: '600' as const,
+            color: colors.text,
+            marginBottom: Spacing.sm,
+        },
+        heading: {
+            fontSize: FontSizes.xl,
+            fontWeight: '600' as const,
+            color: colors.text,
+            marginBottom: Spacing.sm,
+        },
+        text: {
+            fontSize: FontSizes.md,
+            color: colors.text,
+            lineHeight: 20,
+        },
+        textSmall: {
+            fontSize: FontSizes.sm,
+            color: colors.textSecondary,
+            lineHeight: 18,
+        },
+        textLarge: {
+            fontSize: FontSizes.lg,
+            color: colors.text,
+            lineHeight: 22,
+        },
+        label: {
+            fontSize: FontSizes.sm,
+            fontWeight: '500' as const,
+            color: colors.textSecondary,
+            marginBottom: Spacing.xs,
+        },
+
+        // Form styles
         input: {
             backgroundColor: colors.backgroundCard,
             borderWidth: 1,
             borderColor: colors.border,
             borderRadius: BorderRadius.md,
             padding: Spacing.md,
-            fontSize: 16,
+            fontSize: FontSizes.md,
             color: colors.text,
         },
+        inputFocused: {
+            backgroundColor: colors.backgroundCard,
+            borderWidth: 2,
+            borderColor: colors.accentPrimary,
+            borderRadius: BorderRadius.md,
+            padding: Spacing.md,
+            fontSize: FontSizes.md,
+            color: colors.text,
+        },
+
+        // Button styles
         button: {
             backgroundColor: colors.accentPrimary,
             borderRadius: BorderRadius.md,
@@ -130,11 +221,54 @@ export const useTheme = () => {
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
         },
+        buttonSecondary: {
+            backgroundColor: colors.accentSecondary,
+            borderRadius: BorderRadius.md,
+            paddingVertical: Spacing.md,
+            paddingHorizontal: Spacing.lg,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+        },
+        buttonOutline: {
+            backgroundColor: colors.transparent, // Now this will work!
+            borderWidth: 1,
+            borderColor: colors.accentPrimary,
+            borderRadius: BorderRadius.md,
+            paddingVertical: Spacing.md,
+            paddingHorizontal: Spacing.lg,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+        },
+        buttonDisabled: {
+            backgroundColor: colors.disabled,
+            borderRadius: BorderRadius.md,
+            paddingVertical: Spacing.md,
+            paddingHorizontal: Spacing.lg,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+        },
         buttonText: {
             color: colors.textInverse,
-            fontSize: 16,
+            fontSize: FontSizes.md,
             fontWeight: '600' as const,
         },
+        buttonTextSecondary: {
+            color: colors.text,
+            fontSize: FontSizes.md,
+            fontWeight: '600' as const,
+        },
+        buttonTextOutline: {
+            color: colors.accentPrimary,
+            fontSize: FontSizes.md,
+            fontWeight: '600' as const,
+        },
+        buttonTextDisabled: {
+            color: colors.textDisabled,
+            fontSize: FontSizes.md,
+            fontWeight: '600' as const,
+        },
+
+        // Layout utilities
         row: {
             flexDirection: 'row' as const,
             alignItems: 'center' as const,
@@ -144,9 +278,60 @@ export const useTheme = () => {
             alignItems: 'center' as const,
             justifyContent: 'space-between' as const,
         },
+        rowAround: {
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            justifyContent: 'space-around' as const,
+        },
+        rowCenter: {
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+        },
         center: {
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
+        },
+
+        // Spacing utilities
+        gap: {
+            xs: { gap: Spacing.xs },
+            sm: { gap: Spacing.sm },
+            md: { gap: Spacing.md },
+            lg: { gap: Spacing.lg },
+            xl: { gap: Spacing.xl },
+        },
+
+        // Margin utilities
+        margin: {
+            xs: { margin: Spacing.xs },
+            sm: { margin: Spacing.sm },
+            md: { margin: Spacing.md },
+            lg: { margin: Spacing.lg },
+            xl: { margin: Spacing.xl },
+        },
+        marginBottom: {
+            xs: { marginBottom: Spacing.xs },
+            sm: { marginBottom: Spacing.sm },
+            md: { marginBottom: Spacing.md },
+            lg: { marginBottom: Spacing.lg },
+            xl: { marginBottom: Spacing.xl },
+        },
+        marginTop: {
+            xs: { marginTop: Spacing.xs },
+            sm: { marginTop: Spacing.sm },
+            md: { marginTop: Spacing.md },
+            lg: { marginTop: Spacing.lg },
+            xl: { marginTop: Spacing.xl },
+        },
+
+        // Padding utilities
+        padding: {
+            xs: { padding: Spacing.xs },
+            sm: { padding: Spacing.sm },
+            md: { padding: Spacing.md },
+            lg: { padding: Spacing.lg },
+            xl: { padding: Spacing.xl },
         },
     };
 };
@@ -155,5 +340,6 @@ export default {
     Colors,
     Spacing,
     BorderRadius,
+    FontSizes,
     useTheme,
 };

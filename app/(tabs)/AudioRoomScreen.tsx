@@ -1,4 +1,4 @@
-// app/(tabs)/AudioRoomScreen.tsx
+// app/(tabs)/AudioRoomScreen.tsx - Final clean version
 import React, { useEffect, useState } from 'react';
 import {
     View,
@@ -15,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { audioService } from '../../services/audioService';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { AudioComfort } from '../../types/audio';
-import AudioCard from '../../components/AudioCard'; // Use the simple version
+import AudioCard from '../../components/AudioCard';
 import NowPlayingBar from '../../components/NowPlayingBar';
 
 export default function AudioRoomScreen() {
@@ -36,7 +36,6 @@ export default function AudioRoomScreen() {
         try {
             setLoading(true);
             const data = await audioService.getAudioComforts();
-            console.log('Loaded audios:', data.length);
             setAudios(data);
         } catch (error) {
             console.error('Error loading audios:', error);
@@ -66,12 +65,6 @@ export default function AudioRoomScreen() {
                 prev.map(audio =>
                     audio.id === audioId ? { ...audio, is_favorited: isNowFavorited } : audio
                 )
-            );
-            Alert.alert(
-                isNowFavorited ? 'Added to Favorites' : 'Removed from Favorites',
-                isNowFavorited
-                    ? 'Audio added to your favorites!'
-                    : 'Audio removed from favorites.'
             );
         } catch (error) {
             console.error('Error toggling favorite:', error);
