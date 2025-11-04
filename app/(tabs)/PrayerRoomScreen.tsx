@@ -38,7 +38,10 @@ type PrayerIconName =
     | 'search-outline'
     | 'close-outline'
     | 'filter-outline'
-    | 'sparkles';
+    | 'sparkles'
+    | 'lock-closed-outline'
+    | 'lock-closed'
+    | 'people';
 
 type TabType = 'curated' | 'community' | 'my-prayers';
 
@@ -46,6 +49,7 @@ interface PrayerStats {
     prayedCount: number;
     pendingCount: number;
     approvedCount: number;
+    personalPrayersCount: number;
 }
 
 export default function PrayerRoomScreen() {
@@ -69,12 +73,14 @@ export default function PrayerRoomScreen() {
     const [prayerTitle, setPrayerTitle] = useState('');
     const [prayerContent, setPrayerContent] = useState('');
     const [isAnonymous, setIsAnonymous] = useState(true);
+    const [prayerType, setPrayerType] = useState<'personal' | 'community'>('community'); // NEW
 
     // Track original values for modal close confirmation
     const [originalPrayerData, setOriginalPrayerData] = useState<{
         title: string;
         content: string;
         isAnonymous: boolean;
+        prayerType: 'personal' | 'community';
     } | null>(null);
 
     // Stats
@@ -82,6 +88,7 @@ export default function PrayerRoomScreen() {
         prayedCount: 0,
         pendingCount: 0,
         approvedCount: 0,
+        personalPrayersCount: 0,
     });
 
     // Animations
@@ -123,7 +130,12 @@ export default function PrayerRoomScreen() {
             setCuratedPrayers(curatedData);
             setCommunityPrayers(communityData);
             setMyPrayers(myPrayersData);
-            setStats(prayerStats);
+            setStats({
+                prayedCount: prayerStats.prayedCount,
+                pendingCount: prayerStats.pendingCount,
+                approvedCount: prayerStats.approvedCount,
+                personalPrayersCount: prayerStats.personalPrayersCount,
+            });
 
             // Animate in when data loads
             Animated.parallel([
@@ -227,7 +239,8 @@ export default function PrayerRoomScreen() {
         setOriginalPrayerData({
             title: prayerTitle,
             content: prayerContent,
-            isAnonymous
+            isAnonymous,
+            prayerType
         });
         setShowPrayerModal(true);
     };
@@ -268,13 +281,15 @@ export default function PrayerRoomScreen() {
 
         return prayerTitle !== originalPrayerData.title ||
             prayerContent !== originalPrayerData.content ||
-            isAnonymous !== originalPrayerData.isAnonymous;
+            isAnonymous !== originalPrayerData.isAnonymous ||
+            prayerType !== originalPrayerData.prayerType;
     };
 
     const resetPrayerForm = () => {
         setPrayerTitle('');
         setPrayerContent('');
         setIsAnonymous(true);
+        setPrayerType('community'); // Reset to community by default
         setSubmitting(false);
         setOriginalPrayerData(null);
     };
@@ -296,15 +311,19 @@ export default function PrayerRoomScreen() {
                 title: prayerTitle.trim(),
                 content: prayerContent.trim(),
                 is_anonymous: isAnonymous,
+                prayer_type: prayerType, // NEW: personal or community
             };
 
             await prayerService.createPrayerRequest(prayerData);
 
-            Alert.alert(
-                'Prayer Submitted',
-                'Your prayer request has been submitted for review. It will be visible to others once approved.'
-            );
+            let message = '';
+            if (prayerType === 'personal') {
+                message = 'Your personal prayer has been saved. Only you can see this prayer.';
+            } else {
+                message = 'Your community prayer has been submitted for review. It will be visible to others once approved.';
+            }
 
+            Alert.alert('Prayer Submitted', message);
             closePrayerModal(true);
             loadData();
         } catch (error) {
@@ -331,6 +350,10 @@ export default function PrayerRoomScreen() {
             rejected: theme.colors.error,
         };
         return statusColors[status] || theme.colors.textSecondary;
+    };
+
+    const getPrayerTypeColor = (prayerType: 'personal' | 'community') => {
+        return prayerType === 'personal' ? theme.colors.accentPrimary : theme.colors.success;
     };
 
     const formatDate = (dateString: string) => {
@@ -482,6 +505,8 @@ export default function PrayerRoomScreen() {
                         { translateY: slideAnim },
                         { scale: scaleAnim }
                     ],
+                    borderLeftWidth: 4,
+                    borderLeftColor: getPrayerTypeColor(prayer.prayer_type),
                 }
             ]}
         >
@@ -494,22 +519,42 @@ export default function PrayerRoomScreen() {
                 }}>
                     {prayer.title}
                 </Text>
-                {prayer.status !== 'approved' && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
-                        <Ionicons
-                            name={getStatusIcon(prayer.status)}
-                            size={14}
-                            color={getStatusColor(prayer.status)}
-                        />
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
+                    {/* Prayer Type Badge */}
+                    <View style={{
+                        backgroundColor: getPrayerTypeColor(prayer.prayer_type) + '20',
+                        paddingHorizontal: theme.Spacing.sm,
+                        paddingVertical: 2,
+                        borderRadius: theme.BorderRadius.round,
+                    }}>
                         <Text style={{
-                            fontSize: 12,
-                            color: getStatusColor(prayer.status),
-                            textTransform: 'capitalize',
+                            fontSize: 10,
+                            color: getPrayerTypeColor(prayer.prayer_type),
+                            fontWeight: '600',
                         }}>
-                            {prayer.status}
+                            {prayer.prayer_type === 'personal' ? 'Personal' : 'Community'}
                         </Text>
                     </View>
-                )}
+
+                    {/* Status Badge (only show for community prayers that aren't approved) */}
+                    {prayer.prayer_type === 'community' && prayer.status !== 'approved' && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
+                            <Ionicons
+                                name={getStatusIcon(prayer.status)}
+                                size={14}
+                                color={getStatusColor(prayer.status)}
+                            />
+                            <Text style={{
+                                fontSize: 12,
+                                color: getStatusColor(prayer.status),
+                                textTransform: 'capitalize',
+                            }}>
+                                {prayer.status}
+                            </Text>
+                        </View>
+                    )}
+                </View>
             </View>
 
             <Text style={{
@@ -546,7 +591,7 @@ export default function PrayerRoomScreen() {
                         </Text>
                     </View>
 
-                    {showPrayButton && (
+                    {showPrayButton && prayer.prayer_type === 'community' && prayer.status === 'approved' && (
                         <TouchableOpacity
                             onPress={() => handlePrayFor(prayer.id)}
                             disabled={prayingFor[prayer.id]}
@@ -771,6 +816,15 @@ export default function PrayerRoomScreen() {
                             Approved
                         </Text>
                     </View>
+                    <View style={{ alignItems: 'center' }}>
+                        <Ionicons name="lock-closed-outline" size={20} color={theme.colors.accentPrimary} />
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, marginTop: 4 }}>
+                            {stats.personalPrayersCount}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                            Personal
+                        </Text>
+                    </View>
                 </Animated.View>
             </View>
 
@@ -990,13 +1044,121 @@ export default function PrayerRoomScreen() {
                                 marginBottom: theme.Spacing.lg,
                                 lineHeight: 20,
                             }]}
-                            placeholder="Share your prayer request... (will be reviewed before appearing publicly)"
+                            placeholder="Share your prayer request..."
                             placeholderTextColor={theme.colors.textSecondary}
                             value={prayerContent}
                             onChangeText={setPrayerContent}
                             multiline
                             numberOfLines={8}
                         />
+
+                        {/* Prayer Type Selection */}
+                        <View style={{ marginBottom: theme.Spacing.lg }}>
+                            <Text style={{
+                                fontSize: 16,
+                                fontWeight: '500',
+                                color: theme.colors.text,
+                                marginBottom: theme.Spacing.sm,
+                            }}>
+                                Prayer Type
+                            </Text>
+
+                            <View style={{ flexDirection: 'row', gap: theme.Spacing.sm }}>
+                                <TouchableOpacity
+                                    onPress={() => setPrayerType('personal')}
+                                    style={{
+                                        flex: 1,
+                                        padding: theme.Spacing.md,
+                                        borderRadius: theme.BorderRadius.md,
+                                        backgroundColor: prayerType === 'personal'
+                                            ? theme.colors.accentPrimary
+                                            : theme.colors.backgroundCard,
+                                        borderWidth: 2,
+                                        borderColor: prayerType === 'personal'
+                                            ? theme.colors.accentPrimary
+                                            : theme.colors.border,
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <Ionicons
+                                        name="lock-closed-outline"
+                                        size={20}
+                                        color={prayerType === 'personal'
+                                            ? theme.colors.textInverse
+                                            : theme.colors.textSecondary}
+                                    />
+                                    <Text style={{
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: prayerType === 'personal'
+                                            ? theme.colors.textInverse
+                                            : theme.colors.text,
+                                        marginTop: theme.Spacing.xs,
+                                        textAlign: 'center',
+                                    }}>
+                                        Personal
+                                    </Text>
+                                    <Text style={{
+                                        fontSize: 10,
+                                        color: prayerType === 'personal'
+                                            ? theme.colors.textInverse + 'CC'
+                                            : theme.colors.textSecondary,
+                                        marginTop: 2,
+                                        textAlign: 'center',
+                                        lineHeight: 12,
+                                    }}>
+                                        Only you can see this
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={() => setPrayerType('community')}
+                                    style={{
+                                        flex: 1,
+                                        padding: theme.Spacing.md,
+                                        borderRadius: theme.BorderRadius.md,
+                                        backgroundColor: prayerType === 'community'
+                                            ? theme.colors.success
+                                            : theme.colors.backgroundCard,
+                                        borderWidth: 2,
+                                        borderColor: prayerType === 'community'
+                                            ? theme.colors.success
+                                            : theme.colors.border,
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <Ionicons
+                                        name="people-outline"
+                                        size={20}
+                                        color={prayerType === 'community'
+                                            ? theme.colors.textInverse
+                                            : theme.colors.textSecondary}
+                                    />
+                                    <Text style={{
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: prayerType === 'community'
+                                            ? theme.colors.textInverse
+                                            : theme.colors.text,
+                                        marginTop: theme.Spacing.xs,
+                                        textAlign: 'center',
+                                    }}>
+                                        Community
+                                    </Text>
+                                    <Text style={{
+                                        fontSize: 10,
+                                        color: prayerType === 'community'
+                                            ? theme.colors.textInverse + 'CC'
+                                            : theme.colors.textSecondary,
+                                        marginTop: 2,
+                                        textAlign: 'center',
+                                        lineHeight: 12,
+                                    }}>
+                                        Share with others
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
 
                         <TouchableOpacity
                             onPress={() => setIsAnonymous(!isAnonymous)}
@@ -1017,29 +1179,36 @@ export default function PrayerRoomScreen() {
                         </TouchableOpacity>
 
                         <View style={{
-                            backgroundColor: theme.colors.accentPrimary + '15',
+                            backgroundColor: prayerType === 'community' ? theme.colors.accentPrimary + '15' : theme.colors.success + '15',
                             padding: theme.Spacing.md,
                             borderRadius: theme.BorderRadius.md,
                             borderLeftWidth: 4,
-                            borderLeftColor: theme.colors.accentPrimary,
+                            borderLeftColor: prayerType === 'community' ? theme.colors.accentPrimary : theme.colors.success,
                         }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.Spacing.sm }}>
-                                <Ionicons name="sparkles" size={20} color={theme.colors.accentPrimary} />
+                                <Ionicons
+                                    name={prayerType === 'community' ? "people" : "lock-closed"}
+                                    size={20}
+                                    color={prayerType === 'community' ? theme.colors.accentPrimary : theme.colors.success}
+                                />
                                 <View style={{ flex: 1 }}>
                                     <Text style={{
                                         fontSize: 14,
                                         fontWeight: '600',
-                                        color: theme.colors.accentPrimary,
+                                        color: prayerType === 'community' ? theme.colors.accentPrimary : theme.colors.success,
                                         marginBottom: 4,
                                     }}>
-                                        Prayer Submission Guidelines
+                                        {prayerType === 'community' ? 'Community Prayer' : 'Personal Prayer'}
                                     </Text>
                                     <Text style={{
                                         fontSize: 12,
-                                        color: theme.colors.accentPrimary,
+                                        color: prayerType === 'community' ? theme.colors.accentPrimary : theme.colors.success,
                                         lineHeight: 16,
                                     }}>
-                                        Your prayer request will be reviewed before appearing publicly to ensure a safe and supportive environment for everyone.
+                                        {prayerType === 'community'
+                                            ? 'Your prayer will be reviewed before appearing publicly to ensure a safe and supportive environment for everyone.'
+                                            : 'This prayer will remain private and only visible to you. No approval needed.'
+                                        }
                                     </Text>
                                 </View>
                             </View>

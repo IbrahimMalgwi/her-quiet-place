@@ -1,10 +1,10 @@
-// types/prayer.ts
 export interface PrayerRequest {
     id: string;
     user_id: string;
     title: string;
     content: string;
     is_anonymous: boolean;
+    prayer_type: 'personal' | 'community'; // NEW
     status: 'pending' | 'approved' | 'rejected';
     rejection_reason?: string;
     approved_by?: string;
@@ -34,4 +34,5 @@ export interface CreatePrayerRequest {
     title: string;
     content: string;
     is_anonymous: boolean;
+    prayer_type: 'personal' | 'community'; // NEW
 }

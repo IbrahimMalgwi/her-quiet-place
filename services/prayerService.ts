@@ -1,15 +1,15 @@
-// services/prayerService.ts - UPDATED VERSION
 import { supabase } from '../lib/supabase';
 import { PrayerRequest, CuratedPrayer, CreatePrayerRequest } from '../types/prayer';
 
 export const prayerService = {
-    // Get approved prayer requests (without profile join)
+    // Get approved community prayers (only community prayers that are approved)
     async getApprovedPrayers(): Promise<PrayerRequest[]> {
         try {
             const { data, error } = await supabase
                 .from('prayer_requests')
-                .select('*') // Remove the profile join
+                .select('*')
                 .eq('status', 'approved')
+                .eq('prayer_type', 'community') // Only show approved community prayers
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -30,7 +30,7 @@ export const prayerService = {
         }
     },
 
-    // Get user's prayer requests (without profile join)
+    // Get user's prayer requests (both personal and community)
     async getUserPrayers(): Promise<PrayerRequest[]> {
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -41,7 +41,7 @@ export const prayerService = {
 
             const { data, error } = await supabase
                 .from('prayer_requests')
-                .select('*') // Remove the profile join
+                .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
@@ -63,18 +63,22 @@ export const prayerService = {
         }
     },
 
-    // Create a new prayer request (without profile join)
+    // Create a new prayer request with prayer type
     async createPrayerRequest(prayer: CreatePrayerRequest): Promise<PrayerRequest> {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
+            // Auto-approve personal prayers, community prayers need approval
+            const status = prayer.prayer_type === 'personal' ? 'approved' : 'pending';
+
             const prayerData = {
                 title: prayer.title.trim(),
                 content: prayer.content.trim(),
                 is_anonymous: prayer.is_anonymous,
+                prayer_type: prayer.prayer_type, // NEW: personal or community
                 user_id: user.id,
-                status: 'pending',
+                status: status, // Auto-approve personal prayers
                 prayer_count: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -85,7 +89,7 @@ export const prayerService = {
             const { data, error } = await supabase
                 .from('prayer_requests')
                 .insert([prayerData])
-                .select('*') // Remove the profile join
+                .select('*')
                 .single();
 
             if (error) {
@@ -108,7 +112,6 @@ export const prayerService = {
         }
     },
 
-    // ... keep the rest of your prayerService methods the same (they don't use profile joins)
     // Increment prayer count for a prayer request
     async prayForRequest(prayerId: string): Promise<{ success: boolean; newCount?: number }> {
         try {
@@ -200,6 +203,7 @@ export const prayerService = {
         rejectedCount: number;
         totalCommunityPrayers: number;
         totalCuratedPrayers: number;
+        personalPrayersCount: number;
     }> {
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -216,17 +220,16 @@ export const prayerService = {
 
             if (prayedError) {
                 console.error('Error fetching prayed prayers:', prayedError);
-                // If table doesn't exist, return default stats
                 if (prayedError.code === '42P01') {
                     return this.getDefaultStats();
                 }
                 throw prayedError;
             }
 
-            // Get user's prayer requests count by status
+            // Get user's prayer requests count by status and type
             const { data: userPrayers, error: userPrayersError } = await supabase
                 .from('prayer_requests')
-                .select('status')
+                .select('status, prayer_type')
                 .eq('user_id', user.id);
 
             if (userPrayersError) {
@@ -238,7 +241,8 @@ export const prayerService = {
             const { data: communityPrayers, error: communityError } = await supabase
                 .from('prayer_requests')
                 .select('id', { count: 'exact' })
-                .eq('status', 'approved');
+                .eq('status', 'approved')
+                .eq('prayer_type', 'community');
 
             if (communityError) {
                 console.error('Error fetching community prayers:', communityError);
@@ -254,13 +258,19 @@ export const prayerService = {
                 console.error('Error fetching curated prayers:', curatedError);
             }
 
+            const personalPrayersCount = userPrayers?.filter(p => p.prayer_type === 'personal')?.length || 0;
+            const communityPendingCount = userPrayers?.filter(p => p.prayer_type === 'community' && p.status === 'pending')?.length || 0;
+            const communityApprovedCount = userPrayers?.filter(p => p.prayer_type === 'community' && p.status === 'approved')?.length || 0;
+            const communityRejectedCount = userPrayers?.filter(p => p.prayer_type === 'community' && p.status === 'rejected')?.length || 0;
+
             const stats = {
                 prayedCount: prayedPrayers?.length || 0,
-                pendingCount: userPrayers?.filter(p => p.status === 'pending')?.length || 0,
-                approvedCount: userPrayers?.filter(p => p.status === 'approved')?.length || 0,
-                rejectedCount: userPrayers?.filter(p => p.status === 'rejected')?.length || 0,
+                pendingCount: communityPendingCount,
+                approvedCount: communityApprovedCount,
+                rejectedCount: communityRejectedCount,
                 totalCommunityPrayers: communityPrayers?.length || 0,
                 totalCuratedPrayers: curatedPrayers?.length || 0,
+                personalPrayersCount: personalPrayersCount,
             };
 
             return stats;
@@ -279,6 +289,7 @@ export const prayerService = {
             rejectedCount: 0,
             totalCommunityPrayers: 0,
             totalCuratedPrayers: 0,
+            personalPrayersCount: 0,
         };
     }
 };
