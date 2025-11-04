@@ -51,7 +51,8 @@
         {
           "photosPermission": "Allow Her Quiet Place to access your photos to set profile pictures."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
