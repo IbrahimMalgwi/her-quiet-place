@@ -5,14 +5,9 @@ import {
     Text,
     ScrollView,
     TouchableOpacity,
-    TextInput,
     Alert,
     ActivityIndicator,
-    Modal,
-    Switch,
     RefreshControl,
-    ViewStyle,
-    TextStyle
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,48 +15,13 @@ import { AudioComfort } from '../../types/audio';
 import { adminAudioService } from '../../services/adminAudioService';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Helper functions for proper typing
-const createToggleRowStyle = (theme: any): ViewStyle => ({
-    flexDirection: 'row' as 'row',
-    justifyContent: 'space-between' as 'space-between',
-    alignItems: 'center' as 'center',
-    paddingVertical: theme.Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-});
-
-const createLabelStyle = (theme: any): TextStyle => ({
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.text,
-    marginBottom: theme.Spacing.sm,
-});
-
-const createToggleLabelStyle = (theme: any): TextStyle => ({
-    fontSize: 16,
-    color: theme.colors.text,
-});
-
 export default function ManageAudio() {
     const theme = useTheme();
     const { user } = useAuth();
     const [audios, setAudios] = useState<AudioComfort[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [modalVisible, setModalVisible] = useState(false);
-    const [editingAudio, setEditingAudio] = useState<AudioComfort | null>(null);
-
-    // Form state
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        audio_url: '',
-        duration: '',
-        category: '',
-        speaker: '',
-        is_premium: false,
-        is_active: true,
-    });
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         loadAudios();
@@ -86,114 +46,66 @@ export default function ManageAudio() {
         loadAudios();
     };
 
-    const resetForm = () => {
-        setFormData({
-            title: '',
-            description: '',
-            audio_url: '',
-            duration: '',
-            category: '',
-            speaker: '',
-            is_premium: false,
-            is_active: true,
-        });
-        setEditingAudio(null);
-    };
-
-    const openAddModal = () => {
-        resetForm();
-        setModalVisible(true);
-    };
-
-    const openEditModal = (audio: AudioComfort) => {
-        setFormData({
-            title: audio.title,
-            description: audio.description || '',
-            audio_url: audio.audio_url,
-            duration: audio.duration.toString(),
-            category: audio.category || '',
-            speaker: audio.speaker || '',
-            is_premium: audio.is_premium || false,
-            is_active: audio.is_active || true,
-        });
-        setEditingAudio(audio);
-        setModalVisible(true);
-    };
-
-    const handleSubmit = async () => {
-        // Validation
-        if (!formData.title || !formData.audio_url || !formData.duration) {
-            Alert.alert('Error', 'Please fill in all required fields');
-            return;
-        }
-
-        // Check if user is authenticated - with proper null check
-        if (!user) {
-            Alert.alert('Error', 'You must be logged in to manage audio content');
-            return;
-        }
-
+    const pickAndUploadAudio = async () => {
         try {
-            if (editingAudio) {
-                await updateAudio();
-            } else {
-                await addAudio();
-            }
-            setModalVisible(false);
-            loadAudios();
-        } catch (error) {
-            console.error('Error saving audio:', error);
-            Alert.alert('Error', 'Failed to save audio');
-        }
-    };
+            // Pick audio file
+            const file = await adminAudioService.pickAudioFile();
 
-    const addAudio = async () => {
-        try {
-            // Add explicit null check here
-            if (!user) {
-                Alert.alert('Error', 'User not authenticated');
+            // Validate the file
+            const validation = adminAudioService.validateAudioFile(file);
+            if (!validation.valid) {
+                Alert.alert('Invalid File', validation.message);
                 return;
             }
 
+            setUploading(true);
+
+            // Generate unique filename
+            const fileExtension = file.name.split('.').pop();
+            const fileName = `audio_${Date.now()}.${fileExtension}`;
+
+            // Upload file to Supabase storage
+            const publicUrl = await adminAudioService.uploadAudioFile(file.uri, fileName);
+
+            // Create audio record in database
+            if (!user) {
+                throw new Error('User not authenticated');
+            }
+
+            // Use filename without extension as title
+            const title = file.name.replace(/\.[^/.]+$/, "");
+
             await adminAudioService.createAudioComfort({
-                title: formData.title,
-                description: formData.description,
-                audio_url: formData.audio_url,
-                duration: parseInt(formData.duration),
-                category: formData.category,
-                speaker: formData.speaker,
-                is_premium: formData.is_premium,
-                is_active: formData.is_active,
-                created_by: user.id, // Now TypeScript knows user is not null
+                title: title,
+                audio_url: publicUrl,
+                is_premium: false,
+                is_active: true,
+                created_by: user.id,
             });
-            Alert.alert('Success', 'Audio added successfully!');
-        } catch (error) {
-            console.error('Error adding audio:', error);
-            Alert.alert('Error', 'Failed to add audio');
-            throw error;
-        }
-    };
 
-    const updateAudio = async () => {
-        if (!editingAudio) return;
+            Alert.alert('Success', 'Audio uploaded successfully!');
+            loadAudios(); // Refresh the list
 
-        try {
-            await adminAudioService.updateAudioComfort(editingAudio.id, {
-                title: formData.title,
-                description: formData.description,
-                audio_url: formData.audio_url,
-                duration: parseInt(formData.duration),
-                category: formData.category,
-                speaker: formData.speaker,
-                is_premium: formData.is_premium,
-                is_active: formData.is_active,
-                created_by: editingAudio.created_by,
-            });
-            Alert.alert('Success', 'Audio updated successfully!');
-        } catch (error) {
-            console.error('Error updating audio:', error);
-            Alert.alert('Error', 'Failed to update audio');
-            throw error;
+        } catch (error: any) {
+            if (error.message === 'File selection canceled') {
+                return; // Don't show error for canceled selection
+            }
+
+            console.error('Error uploading audio:', error);
+
+            // Show specific error messages
+            if (error.message?.includes('row-level security policy') || error.code === '42501') {
+                Alert.alert(
+                    'Permission Denied',
+                    'Please check your database permissions. You may need to set up RLS policies for the audio_comforts table.'
+                );
+            } else if (error.message?.includes('not authenticated')) {
+                Alert.alert('Authentication Error', 'Please log in again to upload files.');
+            } else {
+                Alert.alert('Upload Error', error.message || 'Failed to upload audio file');
+            }
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -244,9 +156,9 @@ export default function ManageAudio() {
             }
         ]}>
             <View style={{
-                flexDirection: 'row' as 'row',
-                justifyContent: 'space-between' as 'space-between',
-                alignItems: 'flex-start' as 'flex-start'
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start'
             }}>
                 <View style={{ flex: 1 }}>
                     <Text style={{
@@ -258,50 +170,14 @@ export default function ManageAudio() {
                         {audio.title}
                     </Text>
 
-                    {audio.speaker && (
-                        <Text style={{
-                            fontSize: 14,
-                            color: theme.colors.textSecondary,
-                            marginBottom: 2,
-                        }}>
-                            by {audio.speaker}
-                        </Text>
-                    )}
-
-                    {audio.category && (
-                        <View style={{
-                            backgroundColor: theme.colors.accentPrimary + '20',
-                            paddingHorizontal: theme.Spacing.sm,
-                            paddingVertical: 2,
-                            borderRadius: theme.BorderRadius.round,
-                            alignSelf: 'flex-start' as 'flex-start',
-                            marginBottom: 4,
-                        }}>
-                            <Text style={{
-                                fontSize: 10,
-                                color: theme.colors.accentPrimary,
-                                fontWeight: '500',
-                            }}>
-                                {audio.category}
-                            </Text>
-                        </View>
-                    )}
-
-                    <Text style={{
-                        fontSize: 12,
-                        color: theme.colors.textSecondary,
-                    }}>
-                        Duration: {Math.floor(audio.duration / 60)}:{(audio.duration % 60).toString().padStart(2, '0')}
-                    </Text>
-
                     <View style={{
-                        flexDirection: 'row' as 'row',
-                        alignItems: 'center' as 'center',
+                        flexDirection: 'row',
+                        alignItems: 'center',
                         marginTop: 4
                     }}>
                         <View style={{
-                            flexDirection: 'row' as 'row',
-                            alignItems: 'center' as 'center',
+                            flexDirection: 'row',
+                            alignItems: 'center',
                             marginRight: theme.Spacing.lg
                         }}>
                             <Ionicons
@@ -319,8 +195,8 @@ export default function ManageAudio() {
                         </View>
 
                         <View style={{
-                            flexDirection: 'row' as 'row',
-                            alignItems: 'center' as 'center'
+                            flexDirection: 'row',
+                            alignItems: 'center'
                         }}>
                             <Ionicons
                                 name={audio.is_active ? "checkmark-circle" : "close-circle"}
@@ -339,8 +215,8 @@ export default function ManageAudio() {
                 </View>
 
                 <View style={{
-                    flexDirection: 'row' as 'row',
-                    alignItems: 'center' as 'center',
+                    flexDirection: 'row',
+                    alignItems: 'center',
                     gap: theme.Spacing.sm
                 }}>
                     <TouchableOpacity
@@ -352,13 +228,6 @@ export default function ManageAudio() {
                             size={20}
                             color={audio.is_active ? theme.colors.warning : theme.colors.success}
                         />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => openEditModal(audio)}
-                        style={{ padding: theme.Spacing.xs }}
-                    >
-                        <Ionicons name="create-outline" size={20} color={theme.colors.accentPrimary} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -375,8 +244,8 @@ export default function ManageAudio() {
     if (loading) {
         return (
             <View style={[theme.screen, {
-                justifyContent: 'center' as 'center',
-                alignItems: 'center' as 'center'
+                justifyContent: 'center',
+                alignItems: 'center'
             }]}>
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
                 <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
@@ -388,11 +257,11 @@ export default function ManageAudio() {
 
     return (
         <View style={theme.screen}>
-            {/* Header with Add Button */}
+            {/* Header with Upload Button */}
             <View style={{
-                flexDirection: 'row' as 'row',
-                justifyContent: 'space-between' as 'space-between',
-                alignItems: 'center' as 'center',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 padding: theme.Spacing.md,
                 borderBottomWidth: 1,
                 borderBottomColor: theme.colors.border,
@@ -406,20 +275,28 @@ export default function ManageAudio() {
                 </Text>
 
                 <TouchableOpacity
-                    onPress={openAddModal}
+                    onPress={pickAndUploadAudio}
+                    disabled={uploading}
                     style={[
                         theme.button,
+                        uploading && { opacity: 0.6 },
                         {
-                            flexDirection: 'row' as 'row',
-                            alignItems: 'center' as 'center',
+                            flexDirection: 'row',
+                            alignItems: 'center',
                             paddingHorizontal: theme.Spacing.lg,
                         }
                     ]}
                 >
-                    <Ionicons name="add" size={16} color={theme.colors.textInverse} />
-                    <Text style={[theme.buttonText, { marginLeft: theme.Spacing.sm }]}>
-                        Add Audio
-                    </Text>
+                    {uploading ? (
+                        <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                    ) : (
+                        <>
+                            <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.textInverse} />
+                            <Text style={[theme.buttonText, { marginLeft: theme.Spacing.sm }]}>
+                                Upload Audio
+                            </Text>
+                        </>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -437,7 +314,7 @@ export default function ManageAudio() {
             >
                 {audios.length === 0 ? (
                     <View style={{
-                        alignItems: 'center' as 'center',
+                        alignItems: 'center',
                         paddingVertical: theme.Spacing.xl
                     }}>
                         <Ionicons name="musical-notes-outline" size={64} color={theme.colors.textSecondary} />
@@ -446,7 +323,7 @@ export default function ManageAudio() {
                             fontWeight: '600',
                             color: theme.colors.text,
                             marginTop: theme.Spacing.lg,
-                            textAlign: 'center' as 'center',
+                            textAlign: 'center',
                         }}>
                             No audio content yet
                         </Text>
@@ -454,9 +331,9 @@ export default function ManageAudio() {
                             fontSize: 14,
                             color: theme.colors.textSecondary,
                             marginTop: theme.Spacing.sm,
-                            textAlign: 'center' as 'center',
+                            textAlign: 'center',
                         }}>
-                            Add your first audio comfort to get started
+                            Tap "Upload Audio" to add your first audio file
                         </Text>
                     </View>
                 ) : (
@@ -465,141 +342,6 @@ export default function ManageAudio() {
                     ))
                 )}
             </ScrollView>
-
-            {/* Add/Edit Modal */}
-            <Modal
-                visible={modalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={[theme.screen, { padding: theme.Spacing.md }]}>
-                    <View style={{
-                        flexDirection: 'row' as 'row',
-                        justifyContent: 'space-between' as 'space-between',
-                        alignItems: 'center' as 'center',
-                        marginBottom: theme.Spacing.lg,
-                    }}>
-                        <Text style={{
-                            fontSize: 20,
-                            fontWeight: 'bold',
-                            color: theme.colors.text,
-                        }}>
-                            {editingAudio ? 'Edit Audio' : 'Add New Audio'}
-                        </Text>
-
-                        <TouchableOpacity
-                            onPress={() => setModalVisible(false)}
-                            style={{ padding: theme.Spacing.sm }}
-                        >
-                            <Ionicons name="close" size={24} color={theme.colors.text} />
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                        <View style={{ gap: theme.Spacing.lg }}>
-                            {/* Title */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Title *</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.title}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
-                                    placeholder="Enter audio title"
-                                />
-                            </View>
-
-                            {/* Description */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Description</Text>
-                                <TextInput
-                                    style={[theme.input, { height: 80, textAlignVertical: 'top' }]}
-                                    value={formData.description}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                                    placeholder="Enter audio description"
-                                    multiline
-                                />
-                            </View>
-
-                            {/* Audio URL */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Audio URL *</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.audio_url}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, audio_url: text }))}
-                                    placeholder="Enter audio file URL"
-                                />
-                            </View>
-
-                            {/* Duration */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Duration (seconds) *</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.duration}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, duration: text.replace(/[^0-9]/g, '') }))}
-                                    placeholder="Enter duration in seconds"
-                                    keyboardType="numeric"
-                                />
-                            </View>
-
-                            {/* Category */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Category</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.category}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, category: text }))}
-                                    placeholder="e.g., meditation, scripture, prayer"
-                                />
-                            </View>
-
-                            {/* Speaker */}
-                            <View>
-                                <Text style={createLabelStyle(theme)}>Speaker</Text>
-                                <TextInput
-                                    style={theme.input}
-                                    value={formData.speaker}
-                                    onChangeText={(text) => setFormData(prev => ({ ...prev, speaker: text }))}
-                                    placeholder="Enter speaker name"
-                                />
-                            </View>
-
-                            {/* Toggles */}
-                            <View style={theme.card}>
-                                <View style={createToggleRowStyle(theme)}>
-                                    <Text style={createToggleLabelStyle(theme)}>Premium Content</Text>
-                                    <Switch
-                                        value={formData.is_premium}
-                                        onValueChange={(value) => setFormData(prev => ({ ...prev, is_premium: value }))}
-                                        trackColor={{ false: theme.colors.border, true: theme.colors.accentPrimary }}
-                                    />
-                                </View>
-
-                                <View style={createToggleRowStyle(theme)}>
-                                    <Text style={createToggleLabelStyle(theme)}>Active</Text>
-                                    <Switch
-                                        value={formData.is_active}
-                                        onValueChange={(value) => setFormData(prev => ({ ...prev, is_active: value }))}
-                                        trackColor={{ false: theme.colors.border, true: theme.colors.success }}
-                                    />
-                                </View>
-                            </View>
-
-                            {/* Submit Button */}
-                            <TouchableOpacity
-                                style={theme.button}
-                                onPress={handleSubmit}
-                            >
-                                <Text style={theme.buttonText}>
-                                    {editingAudio ? 'Update Audio' : 'Add Audio'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
-                </View>
-            </Modal>
         </View>
     );
 }
