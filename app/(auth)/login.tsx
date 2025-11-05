@@ -12,7 +12,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
-import { Link, Redirect } from 'expo-router';
+import { Link, Redirect, router } from 'expo-router';
 
 export default function LoginScreen() {
     const { signIn, user, userRole, loading: authLoading } = useAuth();
@@ -26,11 +26,14 @@ export default function LoginScreen() {
     // Redirect if user is already authenticated
     if (user && !authLoading) {
         console.log('User authenticated, role:', userRole);
+
+        // Use router.replace instead of Redirect to avoid TypeScript errors
         if (userRole === 'admin') {
-            return <Redirect href="/admin" />;
+            router.replace('/admin' as any);
         } else {
-            return <Redirect href="/(tabs)" />;
+            router.replace('/(tabs)' as any);
         }
+        return null; // Return null while redirecting
     }
 
     // Show loading while checking auth state

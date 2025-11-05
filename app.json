@@ -1,36 +1,70 @@
 {
   "expo": {
-    "name": "quiet-place",
-    "slug": "quiet-place",
+    "name": "Her Quiet Place",
+    "slug": "her-quiet-place",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "quietplace",
+    "scheme": "herquietplace",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff",
+      "imageWidth": 200,
+      "dark": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000"
+      }
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.quietplace"
+      "bundleIdentifier": "com.ganzymalgwitechnologies.herquietplace",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow Her Quiet Place to access your photos to set profile pictures.",
+        "NSMicrophoneUsageDescription": "Allow Her Quiet Place to access microphone for audio features."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.anonymous.quietplace"
+      "package": "com.ganzymalgwitechnologies.herquietplace",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "herquietplace"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
@@ -49,14 +83,43 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Her Quiet Place to access your photos to set profile pictures."
+          "photosPermission": "Allow Her Quiet Place to access your photos to set profile pictures.",
+          "cameraPermission": "Allow Her Quiet Place to access your camera to take photos."
         }
       ],
-      "expo-web-browser"
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Her Quiet Place to access your microphone for audio features."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
-    }
+      "reactCompiler": true,
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "7ba8a5c4-ac5a-48d0-912e-099e33e2a15c"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "owner": "ibrahimmalgwi"
   }
 }

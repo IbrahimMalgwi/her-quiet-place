@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../constants/theme';
-import { Link, router, Redirect } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 export default function SignupScreen() {
     const { signUp, user, loading: authLoading } = useAuth();
@@ -27,7 +27,8 @@ export default function SignupScreen() {
 
     // Redirect if user is already authenticated
     if (user && !authLoading) {
-        return <Redirect href="/(tabs)" />;
+        router.replace('/(tabs)' as any);
+        return null; // Return null while redirecting
     }
 
     // Show loading while checking auth state

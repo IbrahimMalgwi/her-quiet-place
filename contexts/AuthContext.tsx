@@ -2,6 +2,10 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+
+// Add this for OAuth to work properly in Expo
+WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType {
     user: User | null;
@@ -88,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (error) {
                     console.error('Error getting session:', error);
-                    throw error;
+                    // Don't throw - continue with null session
                 }
 
                 if (!mounted) return;
@@ -103,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
-                // Don't throw here - we want to continue even if auth fails
+                // Continue with null session
             } finally {
                 if (mounted) {
                     setLoading(false);
@@ -120,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 console.log('Auth state changed:', event);
 
-                // Update auth state
                 setSession(session);
                 setUser(session?.user ?? null);
 
@@ -130,11 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUserRole(null);
                 }
 
-                // Only set loading to false if we're not in initial load
-                // This prevents flickering when we already have initial state
-                if (event !== 'INITIAL_SESSION') {
-                    setLoading(false);
-                }
+                setLoading(false);
             }
         );
 
@@ -152,12 +151,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 password,
             });
 
-            if (data.user && !error) {
+            if (data?.user && !error) {
                 await checkUserRole(data.user);
             }
 
             return { error };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Sign in error:', error);
             return { error };
         } finally {
@@ -168,18 +167,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signUp = async (email: string, password: string) => {
         try {
             setLoading(true);
+
+            // Remove emailRedirectTo for React Native to avoid origin issues
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         role: 'user' // Default role for new signups
-                    },
-                    emailRedirectTo: `${window.location.origin}/auth/callback` // Adjust for your app
+                    }
+                    // Removed emailRedirectTo to fix the origin error
                 }
             });
 
-            if (data.user && !error) {
+            if (data?.user && !error) {
                 // Create a record in user_roles table for the new user
                 try {
                     const { error: roleError } = await supabase
@@ -203,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             return { error };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Sign up error:', error);
             return { error };
         } finally {
@@ -217,12 +218,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { error } = await supabase.auth.signOut();
             if (error) {
                 console.error('Sign out error:', error);
-                throw error;
             }
             // State will be cleared by the auth state change listener
-        } catch (error) {
+        } catch (error: any) {
             console.error('Sign out error:', error);
-            throw error;
         } finally {
             setLoading(false);
         }
