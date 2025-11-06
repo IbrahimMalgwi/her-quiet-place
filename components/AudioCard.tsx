@@ -141,23 +141,23 @@ export default function AudioCard({
                     </View>
 
                     {/* Favorite Button */}
-                    {onToggleFavorite && (
-                        <TouchableOpacity
-                            onPress={() => onToggleFavorite(audio.id)}
-                            disabled={togglingFavorites[audio.id]}
-                            style={{ padding: 4 }}
-                        >
-                            {togglingFavorites[audio.id] ? (
-                                <ActivityIndicator size="small" color="#A8C1B4" />
-                            ) : (
-                                <Ionicons
-                                    name={audio.is_favorited ? "heart" : "heart-outline"}
-                                    size={16}
-                                    color={audio.is_favorited ? '#A8C1B4' : '#64748B'}
-                                />
-                            )}
-                        </TouchableOpacity>
-                    )}
+                    {/*{onToggleFavorite && (*/}
+                    {/*    <TouchableOpacity*/}
+                    {/*        onPress={() => onToggleFavorite(audio.id)}*/}
+                    {/*        disabled={togglingFavorites[audio.id]}*/}
+                    {/*        style={{ padding: 4 }}*/}
+                    {/*    >*/}
+                    {/*        {togglingFavorites[audio.id] ? (*/}
+                    {/*            <ActivityIndicator size="small" color="#A8C1B4" />*/}
+                    {/*        ) : (*/}
+                    {/*            <Ionicons*/}
+                    {/*                name={audio.is_favorited ? "heart" : "heart-outline"}*/}
+                    {/*                size={16}*/}
+                    {/*                color={audio.is_favorited ? '#A8C1B4' : '#64748B'}*/}
+                    {/*            />*/}
+                    {/*        )}*/}
+                    {/*    </TouchableOpacity>*/}
+                    {/*)}*/}
                 </View>
             </View>
         </View>
