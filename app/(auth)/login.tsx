@@ -1,4 +1,3 @@
-// app/(auth)/login.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -12,7 +11,8 @@ import {
     ScrollView,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
-import { Link, Redirect, router } from 'expo-router';
+import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
     const { signIn, user, userRole, loading: authLoading } = useAuth();
@@ -27,13 +27,12 @@ export default function LoginScreen() {
     if (user && !authLoading) {
         console.log('User authenticated, role:', userRole);
 
-        // Use router.replace instead of Redirect to avoid TypeScript errors
         if (userRole === 'admin') {
             router.replace('/admin' as any);
         } else {
             router.replace('/(tabs)' as any);
         }
-        return null; // Return null while redirecting
+        return null;
     }
 
     // Show loading while checking auth state
@@ -103,6 +102,20 @@ export default function LoginScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
+                {/* Back Button */}
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={{
+                        position: 'absolute',
+                        top: Platform.OS === 'ios' ? 60 : 40,
+                        left: theme.Spacing.lg,
+                        zIndex: 10,
+                        padding: theme.Spacing.sm,
+                    }}
+                >
+                    <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+
                 {/* Header Section */}
                 <View style={{
                     marginBottom: theme.Spacing.xxl,
@@ -234,7 +247,7 @@ export default function LoginScreen() {
                             color: theme.colors.textSecondary,
                             fontSize: 14
                         }}>
-                            Don&#39;t have an account?{' '}
+                            Don't have an account?{' '}
                         </Text>
                         <Link href="/(auth)/signup" asChild>
                             <TouchableOpacity>

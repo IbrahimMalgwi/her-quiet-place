@@ -1,4 +1,3 @@
-// contexts/AuthContext.tsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';

@@ -1,5 +1,4 @@
-// app/_layout.tsx
-import { Stack, Redirect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
@@ -24,7 +23,7 @@ function RootLayoutNav() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             {!user ? (
-                // Not authenticated - show auth screens
+                // Not authenticated - show welcome and auth screens
                 <Stack.Screen name="(auth)" />
             ) : userRole === 'admin' ? (
                 // Admin user - show admin screens

@@ -1,3 +1,4 @@
+//constants/theme.ts
 import { Platform, Dimensions } from "react-native";
 import { useColorScheme } from "react-native";
 

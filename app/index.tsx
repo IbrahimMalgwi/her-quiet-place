@@ -1,15 +1,35 @@
-// app/index.tsx
-import { Redirect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
+import { useEffect } from 'react';
 
 export default function IndexScreen() {
     const { user, userRole, loading } = useAuth();
     const theme = useTheme();
+    const router = useRouter();
 
-    // Show loading indicator only during initial app load
-    if (loading && !user) {
+    useEffect(() => {
+        if (!loading) {
+            if (user) {
+                if (userRole === 'admin') {
+                    router.replace('/admin');
+                } else {
+                    // Use href object format
+                    router.replace({
+                        pathname: '/(tabs)'
+                    } as any);
+                }
+            } else {
+                router.replace({
+                    pathname: '/(auth)/welcome'
+                } as any);
+            }
+        }
+    }, [user, userRole, loading, router]);
+
+    // Show loading indicator
+    if (loading) {
         return (
             <View style={{
                 flex: 1,
@@ -22,15 +42,11 @@ export default function IndexScreen() {
         );
     }
 
-    // If we have a user, redirect based on role
-    if (user) {
-        if (userRole === 'admin') {
-            return <Redirect href="/admin" />;
-        } else {
-            return <Redirect href="/(tabs)" />;
-        }
-    }
-
-    // No user - redirect to login
-    return <Redirect href="/(auth)/login" />;
+    // Return empty view while redirecting
+    return (
+        <View style={{
+            flex: 1,
+            backgroundColor: theme.colors.background
+        }} />
+    );
 }

@@ -1,4 +1,3 @@
-// app/(auth)/signup.tsx
 import React, { useState } from 'react';
 import {
     View,
@@ -14,6 +13,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../constants/theme';
 import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignupScreen() {
     const { signUp, user, loading: authLoading } = useAuth();
@@ -28,7 +28,7 @@ export default function SignupScreen() {
     // Redirect if user is already authenticated
     if (user && !authLoading) {
         router.replace('/(tabs)' as any);
-        return null; // Return null while redirecting
+        return null;
     }
 
     // Show loading while checking auth state
@@ -127,6 +127,20 @@ export default function SignupScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
+                {/* Back Button */}
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={{
+                        position: 'absolute',
+                        top: Platform.OS === 'ios' ? 60 : 40,
+                        left: theme.Spacing.lg,
+                        zIndex: 10,
+                        padding: theme.Spacing.sm,
+                    }}
+                >
+                    <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+
                 {/* Header Section */}
                 <View style={{
                     marginBottom: theme.Spacing.xxl,
