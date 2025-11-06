@@ -247,7 +247,7 @@ export default function LoginScreen() {
                             color: theme.colors.textSecondary,
                             fontSize: 14
                         }}>
-                            Don't have an account?{' '}
+                            Don&#39;t have an account?{' '}
                         </Text>
                         <Link href="/(auth)/signup" asChild>
                             <TouchableOpacity>

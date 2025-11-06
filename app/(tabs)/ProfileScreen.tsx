@@ -1,4 +1,3 @@
-// app/(tabs)/ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -9,7 +8,6 @@ import {
     ActivityIndicator,
     Modal,
     TextInput,
-    Image,
     Switch,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
@@ -17,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { profileService, Profile } from '../../services/profileService';
 import { settingsService, AppSettings } from '../../services/settingsService';
+import { useRouter } from 'expo-router';
 
 type ProfileStat = {
     label: string;
@@ -29,6 +28,7 @@ type TabType = 'stats' | 'settings';
 export default function ProfileScreen() {
     const theme = useTheme();
     const { user, signOut } = useAuth();
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [stats, setStats] = useState<ProfileStat[]>([]);
@@ -95,13 +95,21 @@ export default function ProfileScreen() {
                     text: 'Sign Out',
                     style: 'destructive',
                     onPress: async () => {
-                        await signOut();
+                        try {
+                            await signOut();
+                            // The auth state change will automatically redirect to welcome screen
+                            // via the index.tsx routing
+                        } catch (error) {
+                            console.error('Error during sign out:', error);
+                            Alert.alert('Error', 'Failed to sign out. Please try again.');
+                        }
                     }
                 }
             ]
         );
     };
 
+    // Rest of your ProfileScreen code remains the same...
     const openEditModal = () => {
         setEditingProfile({
             full_name: profile?.full_name || '',

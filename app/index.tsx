@@ -15,15 +15,12 @@ export default function IndexScreen() {
                 if (userRole === 'admin') {
                     router.replace('/admin');
                 } else {
-                    // Use href object format
-                    router.replace({
-                        pathname: '/(tabs)'
-                    } as any);
+                    // Use type assertion for route groups
+                    router.replace('/(tabs)' as any);
                 }
             } else {
-                router.replace({
-                    pathname: '/(auth)/welcome'
-                } as any);
+                // Redirect to welcome page when no user
+                router.replace('/(auth)/welcome' as any);
             }
         }
     }, [user, userRole, loading, router]);

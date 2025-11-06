@@ -217,10 +217,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { error } = await supabase.auth.signOut();
             if (error) {
                 console.error('Sign out error:', error);
+                throw error;
             }
             // State will be cleared by the auth state change listener
+            console.log('Sign out successful');
         } catch (error: any) {
             console.error('Sign out error:', error);
+            throw error;
         } finally {
             setLoading(false);
         }
