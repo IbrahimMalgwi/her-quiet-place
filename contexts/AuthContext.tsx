@@ -1,7 +1,9 @@
+// context/AuthContext.tsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 
 // Add this for OAuth to work properly in Expo
 WebBrowser.maybeCompleteAuthSession();
@@ -160,6 +162,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         await checkUserRole(session.user);
                     } else {
                         setUserRole(null);
+                        // Redirect to welcome screen when signed out
+                        if (event === 'SIGNED_OUT') {
+                            console.log('User signed out, redirecting to welcome screen');
+                            router.replace('/(auth)/welcome');
+                        }
                     }
                 } catch (error) {
                     console.error('Error in auth state change:', error);
@@ -286,12 +293,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await Promise.race([signOutPromise, timeoutPromise]);
 
             console.log('Sign out successful');
-        } catch (error: any) {
-            console.error('Sign out error:', error);
-            // Even if there's an error, clear local state
+
+            // Clear local state immediately
             setUser(null);
             setSession(null);
             setUserRole(null);
+
+            // Navigate to welcome screen
+            router.replace('/(auth)/welcome');
+
+        } catch (error: any) {
+            console.error('Sign out error:', error);
+            // Even if there's an error, clear local state and redirect
+            setUser(null);
+            setSession(null);
+            setUserRole(null);
+            router.replace('/(auth)/welcome');
             throw error;
         } finally {
             setLoading(false);
