@@ -1,33 +1,42 @@
-//app/index.tsx
+// app/index.tsx
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native'; // Added Text import
 import { useTheme } from '../constants/theme';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function IndexScreen() {
     const { user, userRole, loading } = useAuth();
     const theme = useTheme();
     const router = useRouter();
+    const [redirecting, setRedirecting] = useState(false);
 
     useEffect(() => {
-        if (!loading) {
-            if (user) {
-                if (userRole === 'admin') {
-                    router.replace('/admin');
-                } else {
-                    // Use the exact tab route
-                    router.replace('/(tabs)/HomeScreen');
-                }
-            } else {
-                // Redirect to welcome screen
-                router.replace('/(auth)/welcome');
-            }
-        }
-    }, [user, userRole, loading, router]);
+        // Only redirect once when auth state is determined
+        if (!loading && !redirecting) {
+            setRedirecting(true);
 
-    // Show loading indicator
-    if (loading) {
+            // Small delay to ensure router is ready
+            const timer = setTimeout(() => {
+                if (user) {
+                    console.log('User authenticated, redirecting to:', userRole);
+                    if (userRole === 'admin') {
+                        router.replace('/admin');
+                    } else {
+                        router.replace('/(tabs)/HomeScreen');
+                    }
+                } else {
+                    console.log('No user, redirecting to welcome');
+                    router.replace('/(auth)/welcome');
+                }
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [user, userRole, loading, redirecting, router]);
+
+    // Show loading indicator during initial auth check
+    if (loading || redirecting) {
         return (
             <View style={{
                 flex: 1,
@@ -36,11 +45,18 @@ export default function IndexScreen() {
                 backgroundColor: theme.colors.background
             }}>
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                <Text style={{
+                    marginTop: theme.Spacing.md,
+                    color: theme.colors.text,
+                    fontSize: 16
+                }}>
+                    {loading ? 'Checking authentication...' : 'Redirecting...'}
+                </Text>
             </View>
         );
     }
 
-    // Return empty view while redirecting
+    // Safety fallback - empty view
     return (
         <View style={{
             flex: 1,

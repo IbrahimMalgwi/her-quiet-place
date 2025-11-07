@@ -30,6 +30,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAuthenticated = !!user;
 
+    // Safe navigation function with proper typing
+    const safeNavigate = (path: any) => {
+        try {
+            console.log('Navigating to:', path);
+            router.replace(path);
+        } catch (error) {
+            console.error('Navigation error:', error);
+            // Fallback: try again after a short delay
+            setTimeout(() => {
+                router.replace(path);
+            }, 100);
+        }
+    };
+
     const checkUserRole = async (user: User) => {
         try {
             // Add timeout to prevent hanging
@@ -165,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         // Redirect to welcome screen when signed out
                         if (event === 'SIGNED_OUT') {
                             console.log('User signed out, redirecting to welcome screen');
-                            router.replace('/(auth)/welcome');
+                            safeNavigate('/(auth)/welcome' as any);
                         }
                     }
                 } catch (error) {
@@ -299,8 +313,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(null);
             setUserRole(null);
 
-            // Navigate to welcome screen
-            router.replace('/(auth)/welcome');
+            // Navigate to welcome screen using safe navigation
+            safeNavigate('/(auth)/welcome' as any);
 
         } catch (error: any) {
             console.error('Sign out error:', error);
@@ -308,7 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             setSession(null);
             setUserRole(null);
-            router.replace('/(auth)/welcome');
+            safeNavigate('/(auth)/welcome' as any);
             throw error;
         } finally {
             setLoading(false);
