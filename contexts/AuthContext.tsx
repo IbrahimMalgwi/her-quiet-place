@@ -24,17 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
     const isAuthenticated = !!user;
 
     const checkUserRole = async (user: User) => {
         try {
-            // Try to get role from user_roles table first
-            const { data, error } = await supabase
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Role check timeout')), 10000)
+            );
+
+            const rolePromise = supabase
                 .from('user_roles')
                 .select('role')
                 .eq('user_id', user.id)
                 .single();
+
+            const { data, error } = await Promise.race([rolePromise, timeoutPromise]) as any;
 
             if (data && !error) {
                 console.log('Role from user_roles table:', data.role);
@@ -81,20 +88,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         let mounted = true;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
         const initializeAuth = async () => {
             try {
                 setLoading(true);
 
-                // Get initial session
-                const { data: { session }, error } = await supabase.auth.getSession();
+                // Add timeout for initial session loading
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Auth initialization timeout')), 15000)
+                );
+
+                const sessionPromise = supabase.auth.getSession();
+
+                const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
+                if (!mounted) return;
 
                 if (error) {
                     console.error('Error getting session:', error);
                     // Don't throw - continue with null session
                 }
-
-                if (!mounted) return;
 
                 setSession(session);
                 setUser(session?.user ?? null);
@@ -106,38 +120,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
-                // Continue with null session
+                // Continue with null session - don't block the app
             } finally {
                 if (mounted) {
                     setLoading(false);
+                    setInitialLoadComplete(true);
                 }
             }
         };
 
         initializeAuth();
 
-        // Listen for auth changes
+        // Listen for auth changes with better error handling
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
                 if (!mounted) return;
 
                 console.log('Auth state changed:', event);
 
-                setSession(session);
-                setUser(session?.user ?? null);
-
-                if (session?.user) {
-                    await checkUserRole(session.user);
-                } else {
-                    setUserRole(null);
+                // Clear any existing timeouts
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
                 }
 
-                setLoading(false);
+                // Set a timeout for auth state changes
+                timeoutId = setTimeout(() => {
+                    if (mounted) {
+                        console.warn('Auth state change taking too long, forcing completion');
+                        setLoading(false);
+                    }
+                }, 10000);
+
+                try {
+                    setSession(session);
+                    setUser(session?.user ?? null);
+
+                    if (session?.user) {
+                        await checkUserRole(session.user);
+                    } else {
+                        setUserRole(null);
+                    }
+                } catch (error) {
+                    console.error('Error in auth state change:', error);
+                } finally {
+                    if (mounted && timeoutId) {
+                        setLoading(false);
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                }
             }
         );
 
         return () => {
             mounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
             subscription.unsubscribe();
         };
     }, []);
@@ -145,10 +185,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signIn = async (email: string, password: string) => {
         try {
             setLoading(true);
-            const { data, error } = await supabase.auth.signInWithPassword({
+
+            // Add timeout for sign in
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Sign in timeout')), 30000)
+            );
+
+            const signInPromise = supabase.auth.signInWithPassword({
                 email,
                 password,
             });
+
+            const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
 
             if (data?.user && !error) {
                 await checkUserRole(data.user);
@@ -157,6 +205,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error };
         } catch (error: any) {
             console.error('Sign in error:', error);
+            // Return a more user-friendly error message
+            if (error.message === 'Sign in timeout') {
+                return { error: { message: 'Sign in taking too long. Please check your connection and try again.' } };
+            }
             return { error };
         } finally {
             setLoading(false);
@@ -167,17 +219,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             setLoading(true);
 
-            // Remove emailRedirectTo for React Native to avoid origin issues
-            const { data, error } = await supabase.auth.signUp({
+            // Add timeout for sign up
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Sign up timeout')), 30000)
+            );
+
+            const signUpPromise = supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         role: 'user' // Default role for new signups
                     }
-                    // Removed emailRedirectTo to fix the origin error
                 }
             });
+
+            const { data, error } = await Promise.race([signUpPromise, timeoutPromise]) as any;
 
             if (data?.user && !error) {
                 // Create a record in user_roles table for the new user
@@ -205,6 +262,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error };
         } catch (error: any) {
             console.error('Sign up error:', error);
+            // Return a more user-friendly error message
+            if (error.message === 'Sign up timeout') {
+                return { error: { message: 'Sign up taking too long. Please check your connection and try again.' } };
+            }
             return { error };
         } finally {
             setLoading(false);
@@ -214,15 +275,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         try {
             setLoading(true);
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error('Sign out error:', error);
-                throw error;
-            }
-            // State will be cleared by the auth state change listener
+
+            // Add timeout for sign out
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Sign out timeout')), 10000)
+            );
+
+            const signOutPromise = supabase.auth.signOut();
+
+            await Promise.race([signOutPromise, timeoutPromise]);
+
             console.log('Sign out successful');
         } catch (error: any) {
             console.error('Sign out error:', error);
+            // Even if there's an error, clear local state
+            setUser(null);
+            setSession(null);
+            setUserRole(null);
             throw error;
         } finally {
             setLoading(false);
@@ -232,7 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const value = {
         user,
         session,
-        loading,
+        loading: loading && !initialLoadComplete, // Only show loading during initial app start
         signIn,
         signUp,
         signOut,

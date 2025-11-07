@@ -1,3 +1,4 @@
+//app/index.tsx
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
@@ -15,12 +16,12 @@ export default function IndexScreen() {
                 if (userRole === 'admin') {
                     router.replace('/admin');
                 } else {
-                    // Use type assertion for route groups
-                    router.replace('/(tabs)' as any);
+                    // Use the exact tab route
+                    router.replace('/(tabs)/HomeScreen');
                 }
             } else {
-                // Redirect to welcome page when no user
-                router.replace('/(auth)/welcome' as any);
+                // Redirect to welcome screen
+                router.replace('/(auth)/welcome');
             }
         }
     }, [user, userRole, loading, router]);

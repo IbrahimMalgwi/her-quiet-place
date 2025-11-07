@@ -1,3 +1,4 @@
+//app/(auth)/welcome.tsx
 import React from 'react';
 import {
     View,

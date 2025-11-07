@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../constants/theme';
