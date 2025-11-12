@@ -99,7 +99,8 @@
         {
           "microphonePermission": "Allow Her Quiet Place to access your microphone for audio features."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

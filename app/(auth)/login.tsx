@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     View,
@@ -22,18 +22,25 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [shouldRedirect, setShouldRedirect] = useState(false);
 
-    // Redirect if user is already authenticated
-    if (user && !authLoading) {
-        console.log('User authenticated, role:', userRole);
+    // Use useEffect for navigation instead of during render
+    useEffect(() => {
+        if (user && !authLoading && !shouldRedirect) {
+            console.log('User authenticated, role:', userRole);
+            setShouldRedirect(true);
 
-        if (userRole === 'admin') {
-            router.replace('/admin' as any);
-        } else {
-            router.replace('/(tabs)' as any);
+            // Small delay to ensure component is mounted
+            setTimeout(() => {
+                if (userRole === 'admin') {
+                    router.replace('/admin' as any);
+                } else {
+                    // Navigate to specific tab screen, not the layout
+                    router.replace('/(tabs)/HomeScreen' as any);
+                }
+            }, 100);
         }
-        return null;
-    }
+    }, [user, userRole, authLoading, shouldRedirect]);
 
     // Show loading while checking auth state
     if (authLoading) {
@@ -50,6 +57,26 @@ export default function LoginScreen() {
                     color: theme.colors.text
                 }}>
                     Checking authentication...
+                </Text>
+            </View>
+        );
+    }
+
+    // Show loading while redirecting
+    if (shouldRedirect) {
+        return (
+            <View style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: theme.colors.background
+            }}>
+                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                <Text style={{
+                    marginTop: theme.Spacing.md,
+                    color: theme.colors.text
+                }}>
+                    Redirecting...
                 </Text>
             </View>
         );
@@ -75,7 +102,7 @@ export default function LoginScreen() {
             if (error) {
                 setError(error.message);
             }
-            // Auth state change will handle redirect automatically
+            // Auth state change will handle redirect automatically via useEffect
         } catch (err) {
             setError('An unexpected error occurred');
             console.error('Login error:', err);

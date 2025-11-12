@@ -10,10 +10,7 @@ import {
     Share,
     Alert,
     Animated,
-    Easing,
     Dimensions,
-    AppState,
-    AppStateStatus
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -58,7 +55,7 @@ const enhanceItemWithFavorites = (item: any, favorites: any[]): DailyItem => {
 
 export default function HomeScreen() {
     const theme = useTheme();
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const [dailyItems, setDailyItems] = useState<{
         quote: DailyItem | null;
         verse: DailyItem | null;
@@ -77,16 +74,40 @@ export default function HomeScreen() {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const streakPulse = useRef(new Animated.Value(1)).current;
 
-    // App state tracking
-    const appState = useRef(AppState.currentState);
+    // Reset data when user logs out
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) {
+                console.log('User logged out, resetting home screen data');
+                setDailyItems({
+                    quote: null,
+                    verse: null,
+                    prayer: null
+                });
+                setUserStreak(null);
+                setTodaysAffirmation(null);
+                setLoading(false);
+            }
+        }, [user])
+    );
 
-    // Fetch all data on component mount
+    // Fetch all data on component mount and when user changes
     useEffect(() => {
-        console.log('HomeScreen mounted, fetching data...');
-        fetchAllData();
-    }, []);
+        console.log('HomeScreen mounted or user changed, fetching data...');
+        if (user) {
+            fetchAllData();
+        } else {
+            setLoading(false);
+        }
+    }, [user]);
 
     const fetchAllData = async () => {
+        if (!user) {
+            console.log('No user, skipping data fetch');
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             console.log('Starting to fetch all data...');
@@ -94,7 +115,7 @@ export default function HomeScreen() {
             await Promise.all([
                 fetchDailyItems(),
                 fetchTodaysAffirmation(),
-                user ? updateUserStreak() : Promise.resolve()
+                updateUserStreak()
             ]);
 
             console.log('All data fetched successfully');
@@ -464,6 +485,28 @@ export default function HomeScreen() {
         }
     };
 
+    // Add this function to handle manual logout from home screen if needed
+    const handleLogout = async () => {
+        Alert.alert(
+            "Sign Out",
+            "Are you sure you want to sign out?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Sign Out",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await signOut();
+                        } catch (error) {
+                            console.error('Error during logout:', error);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const renderDailyItem = (item: DailyItem | null, type: 'quote' | 'verse' | 'prayer') => {
         if (!item) {
             console.log(`No ${type} item to render`);
@@ -647,7 +690,7 @@ export default function HomeScreen() {
 
     return (
         <View style={theme.screen}>
-            {/* Simplified Header */}
+            {/* Enhanced Header with Logout */}
             <View style={{
                 paddingHorizontal: theme.Spacing.lg,
                 paddingVertical: theme.Spacing.lg,
@@ -665,8 +708,8 @@ export default function HomeScreen() {
                             Daily Strength
                         </Text>
 
-                        {/* Streak Display */}
-                        {userStreak && userStreak.current_streak > 0 && (
+                        {/* User info and streak */}
+                        {user && userStreak && userStreak.current_streak > 0 && (
                             <Animated.View
                                 style={[
                                     {
@@ -695,16 +738,32 @@ export default function HomeScreen() {
                         )}
                     </View>
 
-                    <TouchableOpacity
-                        onPress={handleRefresh}
-                        style={{
-                            padding: theme.Spacing.sm,
-                            backgroundColor: theme.colors.accentPrimary + '15',
-                            borderRadius: theme.BorderRadius.round,
-                        }}
-                    >
-                        <Ionicons name="refresh" size={20} color={theme.colors.accentPrimary} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                        <TouchableOpacity
+                            onPress={handleRefresh}
+                            style={{
+                                padding: theme.Spacing.sm,
+                                backgroundColor: theme.colors.accentPrimary + '15',
+                                borderRadius: theme.BorderRadius.round,
+                            }}
+                        >
+                            <Ionicons name="refresh" size={20} color={theme.colors.accentPrimary} />
+                        </TouchableOpacity>
+
+                        {/* Logout button */}
+                        {user && (
+                            <TouchableOpacity
+                                onPress={handleLogout}
+                                style={{
+                                    padding: theme.Spacing.sm,
+                                    backgroundColor: theme.colors.error + '15',
+                                    borderRadius: theme.BorderRadius.round,
+                                }}
+                            >
+                                <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
             </View>
 
