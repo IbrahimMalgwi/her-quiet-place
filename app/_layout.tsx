@@ -1,37 +1,34 @@
+// app/_layout.tsx
 import { Stack } from 'expo-router';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
-import { useTheme } from '../constants/theme';
+import { AuthProvider } from '../contexts/AuthContext';
+import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 
-function RootLayoutNav() {
-    const { user, userRole, loading } = useAuth();
-    const theme = useTheme();
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
-    if (loading) {
-        return (
-            <View style={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: theme.colors.background
-            }}>
-                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
-            </View>
-        );
-    }
+function RootLayoutContent() {
+    useEffect(() => {
+        // Hide splash screen after a short delay to ensure everything is loaded
+        const timer = setTimeout(() => {
+            SplashScreen.hideAsync();
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
-        <Stack screenOptions={{ headerShown: false }}>
-            {!user ? (
-                // Not authenticated - show welcome and auth screens
-                <Stack.Screen name="(auth)" />
-            ) : userRole === 'admin' ? (
-                // Admin user - show admin screens
-                <Stack.Screen name="(admin)" />
-            ) : (
-                // Regular user - show user tabs
-                <Stack.Screen name="(tabs)" />
-            )}
+        <Stack
+            screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+            }}
+        >
+            <Stack.Screen name="index" options={{ animation: 'none' }} />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="admin" />
+            <Stack.Screen name="[...unmatched]" options={{ animation: 'none' }} />
         </Stack>
     );
 }
@@ -39,7 +36,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
     return (
         <AuthProvider>
-            <RootLayoutNav />
+            <RootLayoutContent />
         </AuthProvider>
     );
 }

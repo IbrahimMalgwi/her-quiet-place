@@ -9,6 +9,7 @@ import {
     Modal,
     TextInput,
     Switch,
+    StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,9 +28,9 @@ type TabType = 'stats' | 'settings';
 
 export default function ProfileScreen() {
     const theme = useTheme();
-    const { user, signOut } = useAuth();
+    const { user, signOut, userRole } = useAuth();
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [stats, setStats] = useState<ProfileStat[]>([]);
     const [activeTab, setActiveTab] = useState<TabType>('stats');
@@ -37,52 +38,56 @@ export default function ProfileScreen() {
     const [editingProfile, setEditingProfile] = useState<Partial<Profile>>({});
     const [saving, setSaving] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const [statsLoading, setStatsLoading] = useState(true);
 
     useEffect(() => {
         loadProfileData();
-        loadSettings();
-    }, []);
+    }, [user]);
 
     const loadProfileData = async () => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
+        setStatsLoading(true);
         try {
             const [profileData, settingsData] = await Promise.all([
                 profileService.getProfile(user.id),
                 settingsService.getSettings(),
-                loadProfileStats()
             ]);
 
             setProfile(profileData);
             setSettings(settingsData);
+            await loadProfileStats();
         } catch (error) {
             console.error('Error loading profile data:', error);
             Alert.alert('Error', 'Failed to load profile data');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const loadSettings = async () => {
-        try {
-            const settingsData = await settingsService.getSettings();
-            setSettings(settingsData);
-        } catch (error) {
-            console.error('Error loading settings:', error);
+            setStatsLoading(false);
         }
     };
 
     const loadProfileStats = async () => {
-        // Simulate loading user stats - you can replace with actual data from your database
-        setTimeout(() => {
-            setStats([
+        try {
+            // Simulate API call - replace with actual stats from your database
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const mockStats: ProfileStat[] = [
                 { label: 'Audio Listened', value: 24, icon: 'musical-notes' },
                 { label: 'Favorites', value: 8, icon: 'heart' },
                 { label: 'Minutes', value: 345, icon: 'time' },
                 { label: 'Sessions', value: 42, icon: 'play' },
-            ]);
-        }, 500);
+            ];
+
+            setStats(mockStats);
+        } catch (error) {
+            console.error('Error loading stats:', error);
+            // Set empty stats on error
+            setStats([]);
+        }
     };
 
     const handleSignOut = async () => {
@@ -96,12 +101,13 @@ export default function ProfileScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
+                            setLoading(true);
                             await signOut();
-                            // The auth state change will automatically redirect to welcome screen
-                            // via the index.tsx routing
+                            // AuthContext will handle redirect to welcome screen
                         } catch (error) {
                             console.error('Error during sign out:', error);
                             Alert.alert('Error', 'Failed to sign out. Please try again.');
+                            setLoading(false);
                         }
                     }
                 }
@@ -109,7 +115,6 @@ export default function ProfileScreen() {
         );
     };
 
-    // Rest of your ProfileScreen code remains the same...
     const openEditModal = () => {
         setEditingProfile({
             full_name: profile?.full_name || '',
@@ -177,41 +182,99 @@ export default function ProfileScreen() {
                 gap: theme.Spacing.sm,
                 marginBottom: theme.Spacing.lg,
             }}>
-                {stats.map((stat) => (
-                    <View
-                        key={stat.label}
-                        style={[
-                            theme.card,
-                            {
-                                flex: 1,
-                                minWidth: '45%',
-                                alignItems: 'center',
-                                padding: theme.Spacing.md,
-                            }
-                        ]}
-                    >
-                        <Ionicons
-                            name={stat.icon as any}
-                            size={24}
-                            color={theme.colors.accentPrimary}
-                        />
+                {statsLoading ? (
+                    // Loading state for stats
+                    Array(4).fill(0).map((_, index) => (
+                        <View
+                            key={index}
+                            style={[
+                                theme.card,
+                                {
+                                    flex: 1,
+                                    minWidth: '45%',
+                                    alignItems: 'center',
+                                    padding: theme.Spacing.md,
+                                    opacity: 0.7,
+                                }
+                            ]}
+                        >
+                            <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
+                            <Text style={{
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                                color: theme.colors.text,
+                                marginVertical: theme.Spacing.xs,
+                            }}>
+                                -
+                            </Text>
+                            <Text style={{
+                                fontSize: 12,
+                                color: theme.colors.textSecondary,
+                                textAlign: 'center',
+                            }}>
+                                Loading...
+                            </Text>
+                        </View>
+                    ))
+                ) : stats.length > 0 ? (
+                    // Actual stats
+                    stats.map((stat) => (
+                        <View
+                            key={stat.label}
+                            style={[
+                                theme.card,
+                                {
+                                    flex: 1,
+                                    minWidth: '45%',
+                                    alignItems: 'center',
+                                    padding: theme.Spacing.md,
+                                }
+                            ]}
+                        >
+                            <Ionicons
+                                name={stat.icon as any}
+                                size={24}
+                                color={theme.colors.accentPrimary}
+                            />
+                            <Text style={{
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                                color: theme.colors.text,
+                                marginVertical: theme.Spacing.xs,
+                            }}>
+                                {stat.value}
+                            </Text>
+                            <Text style={{
+                                fontSize: 12,
+                                color: theme.colors.textSecondary,
+                                textAlign: 'center',
+                            }}>
+                                {stat.label}
+                            </Text>
+                        </View>
+                    ))
+                ) : (
+                    // Empty state
+                    <View style={[theme.card, { width: '100%', alignItems: 'center', padding: theme.Spacing.xl }]}>
+                        <Ionicons name="stats-chart" size={48} color={theme.colors.textSecondary} />
                         <Text style={{
-                            fontSize: 20,
-                            fontWeight: 'bold',
-                            color: theme.colors.text,
-                            marginVertical: theme.Spacing.xs,
-                        }}>
-                            {stat.value}
-                        </Text>
-                        <Text style={{
-                            fontSize: 12,
+                            fontSize: 16,
                             color: theme.colors.textSecondary,
                             textAlign: 'center',
+                            marginTop: theme.Spacing.md,
                         }}>
-                            {stat.label}
+                            No statistics available yet
+                        </Text>
+                        <Text style={{
+                            fontSize: 14,
+                            color: theme.colors.textSecondary,
+                            textAlign: 'center',
+                            marginTop: theme.Spacing.sm,
+                        }}>
+                            Your usage statistics will appear here as you use the app
                         </Text>
                     </View>
-                ))}
+                )}
             </View>
 
             {/* Recent Activity */}
@@ -257,10 +320,47 @@ export default function ProfileScreen() {
     );
 
     const renderSettingsTab = () => {
-        if (!settings) return null;
+        if (!settings) {
+            return (
+                <View style={[theme.card, { alignItems: 'center', padding: theme.Spacing.xl }]}>
+                    <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                    <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
+                        Loading settings...
+                    </Text>
+                </View>
+            );
+        }
 
         return (
             <View style={{ gap: theme.Spacing.md }}>
+                {/* User Role Badge */}
+                {userRole && (
+                    <View style={[theme.card, { alignItems: 'center' }]}>
+                        <Text style={{
+                            fontSize: 14,
+                            color: theme.colors.textSecondary,
+                            marginBottom: theme.Spacing.xs,
+                        }}>
+                            Account Type
+                        </Text>
+                        <View style={{
+                            backgroundColor: userRole === 'admin' ? theme.colors.accentSecondary : theme.colors.accentPrimary,
+                            paddingHorizontal: theme.Spacing.lg,
+                            paddingVertical: theme.Spacing.sm,
+                            borderRadius: theme.BorderRadius.round,
+                        }}>
+                            <Text style={{
+                                fontSize: 14,
+                                fontWeight: '600',
+                                color: theme.colors.textInverse,
+                                textTransform: 'capitalize',
+                            }}>
+                                {userRole} Account
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Preferences */}
                 <View style={theme.card}>
                     <Text style={{
@@ -405,9 +505,14 @@ export default function ProfileScreen() {
                                     text: 'Reset',
                                     style: 'destructive',
                                     onPress: async () => {
-                                        const defaultSettings = await settingsService.resetSettings();
-                                        setSettings(defaultSettings);
-                                        Alert.alert('Success', 'Settings reset to default');
+                                        try {
+                                            const defaultSettings = await settingsService.resetSettings();
+                                            setSettings(defaultSettings);
+                                            Alert.alert('Success', 'Settings reset to default');
+                                        } catch (error) {
+                                            console.error('Error resetting settings:', error);
+                                            Alert.alert('Error', 'Failed to reset settings');
+                                        }
                                     }
                                 }
                             ]
@@ -426,6 +531,7 @@ export default function ProfileScreen() {
     if (loading) {
         return (
             <View style={[theme.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+                <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
                 <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
                     Loading profile...
@@ -435,145 +541,148 @@ export default function ProfileScreen() {
     }
 
     return (
-        <ScrollView style={theme.screen} showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={{
-                backgroundColor: theme.colors.accentPrimary + '20',
-                padding: theme.Spacing.xl,
-                alignItems: 'center',
-            }}>
-                {/* Profile Avatar - Static for now */}
-                <View style={{ position: 'relative', marginBottom: theme.Spacing.md }}>
-                    <View style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
-                        backgroundColor: theme.colors.accentPrimary,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                    }}>
-                        <Text style={{
-                            fontSize: 32,
-                            fontWeight: 'bold',
-                            color: theme.colors.textInverse,
+        <View style={theme.screen}>
+            <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <View style={{
+                    backgroundColor: theme.colors.accentPrimary + '20',
+                    padding: theme.Spacing.xl,
+                    alignItems: 'center',
+                }}>
+                    {/* Profile Avatar */}
+                    <View style={{ position: 'relative', marginBottom: theme.Spacing.md }}>
+                        <View style={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: 40,
+                            backgroundColor: theme.colors.accentPrimary,
+                            justifyContent: 'center',
+                            alignItems: 'center',
                         }}>
-                            {getInitials(profile, user?.email || '')}
-                        </Text>
+                            <Text style={{
+                                fontSize: 32,
+                                fontWeight: 'bold',
+                                color: theme.colors.textInverse,
+                            }}>
+                                {getInitials(profile, user?.email || '')}
+                            </Text>
+                        </View>
                     </View>
+
+                    <Text style={{
+                        fontSize: 24,
+                        fontWeight: 'bold',
+                        color: theme.colors.text,
+                        marginBottom: theme.Spacing.xs,
+                    }}>
+                        {getDisplayName(profile, user?.email || '')}
+                    </Text>
+
+                    {profile?.bio ? (
+                        <Text style={{
+                            fontSize: 14,
+                            color: theme.colors.textSecondary,
+                            textAlign: 'center',
+                            marginBottom: theme.Spacing.lg,
+                            lineHeight: 20,
+                        }}>
+                            {profile.bio}
+                        </Text>
+                    ) : (
+                        <Text style={{
+                            fontSize: 14,
+                            color: theme.colors.textSecondary,
+                            marginBottom: theme.Spacing.lg,
+                        }}>
+                            {user?.email}
+                        </Text>
+                    )}
+
+                    <TouchableOpacity
+                        style={[
+                            theme.button,
+                            {
+                                backgroundColor: 'transparent',
+                                borderWidth: 1,
+                                borderColor: theme.colors.accentPrimary,
+                                paddingHorizontal: theme.Spacing.lg,
+                            }
+                        ]}
+                        onPress={openEditModal}
+                    >
+                        <Text style={[theme.buttonText, { color: theme.colors.accentPrimary }]}>
+                            Edit Profile
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
-                <Text style={{
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    color: theme.colors.text,
-                    marginBottom: theme.Spacing.xs,
+                {/* Tab Navigation */}
+                <View style={{
+                    flexDirection: 'row',
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.border,
+                    marginTop: theme.Spacing.lg,
                 }}>
-                    {getDisplayName(profile, user?.email || '')}
-                </Text>
+                    {(['stats', 'settings'] as TabType[]).map((tab) => (
+                        <TouchableOpacity
+                            key={tab}
+                            onPress={() => setActiveTab(tab)}
+                            style={{
+                                flex: 1,
+                                paddingVertical: theme.Spacing.md,
+                                alignItems: 'center',
+                                borderBottomWidth: 2,
+                                borderBottomColor: activeTab === tab ? theme.colors.accentPrimary : 'transparent',
+                            }}
+                        >
+                            <Text style={{
+                                fontSize: 14,
+                                fontWeight: '600',
+                                color: activeTab === tab ? theme.colors.accentPrimary : theme.colors.textSecondary,
+                            }}>
+                                {tab === 'stats' ? 'Statistics' : 'Settings'}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
 
-                {profile?.bio ? (
-                    <Text style={{
-                        fontSize: 14,
-                        color: theme.colors.textSecondary,
-                        textAlign: 'center',
-                        marginBottom: theme.Spacing.lg,
-                        lineHeight: 20,
-                    }}>
-                        {profile.bio}
-                    </Text>
-                ) : (
-                    <Text style={{
-                        fontSize: 14,
-                        color: theme.colors.textSecondary,
-                        marginBottom: theme.Spacing.lg,
-                    }}>
-                        {user?.email}
-                    </Text>
-                )}
+                {/* Content */}
+                <View style={{ padding: theme.Spacing.md }}>
+                    {activeTab === 'stats' ? renderStatsTab() : renderSettingsTab()}
+                </View>
 
+                {/* Sign Out Button */}
                 <TouchableOpacity
                     style={[
                         theme.button,
                         {
+                            margin: theme.Spacing.md,
+                            marginTop: theme.Spacing.xl,
                             backgroundColor: 'transparent',
                             borderWidth: 1,
-                            borderColor: theme.colors.accentPrimary,
-                            paddingHorizontal: theme.Spacing.lg,
+                            borderColor: theme.colors.error,
                         }
                     ]}
-                    onPress={openEditModal}
+                    onPress={handleSignOut}
                 >
-                    <Text style={[theme.buttonText, { color: theme.colors.accentPrimary }]}>
-                        Edit Profile
+                    <Ionicons name="log-out-outline" size={16} color={theme.colors.error} />
+                    <Text style={[theme.buttonText, { color: theme.colors.error, marginLeft: theme.Spacing.sm }]}>
+                        Sign Out
                     </Text>
                 </TouchableOpacity>
-            </View>
 
-            {/* Tab Navigation */}
-            <View style={{
-                flexDirection: 'row',
-                borderBottomWidth: 1,
-                borderBottomColor: theme.colors.border,
-                marginTop: theme.Spacing.lg,
-            }}>
-                {(['stats', 'settings'] as TabType[]).map((tab) => (
-                    <TouchableOpacity
-                        key={tab}
-                        onPress={() => setActiveTab(tab)}
-                        style={{
-                            flex: 1,
-                            paddingVertical: theme.Spacing.md,
-                            alignItems: 'center',
-                            borderBottomWidth: 2,
-                            borderBottomColor: activeTab === tab ? theme.colors.accentPrimary : 'transparent',
-                        }}
-                    >
-                        <Text style={{
-                            fontSize: 14,
-                            fontWeight: '600',
-                            color: activeTab === tab ? theme.colors.accentPrimary : theme.colors.textSecondary,
-                        }}>
-                            {tab === 'stats' ? 'Statistics' : 'Settings'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {/* Content */}
-            <View style={{ padding: theme.Spacing.md }}>
-                {activeTab === 'stats' ? renderStatsTab() : renderSettingsTab()}
-            </View>
-
-            {/* Sign Out Button */}
-            <TouchableOpacity
-                style={[
-                    theme.button,
-                    {
-                        margin: theme.Spacing.md,
-                        marginTop: theme.Spacing.xl,
-                        backgroundColor: 'transparent',
-                        borderWidth: 1,
-                        borderColor: theme.colors.error,
-                    }
-                ]}
-                onPress={handleSignOut}
-            >
-                <Ionicons name="log-out-outline" size={16} color={theme.colors.error} />
-                <Text style={[theme.buttonText, { color: theme.colors.error, marginLeft: theme.Spacing.sm }]}>
-                    Sign Out
+                {/* App Version */}
+                <Text style={{
+                    textAlign: 'center',
+                    fontSize: 12,
+                    color: theme.colors.textSecondary,
+                    marginBottom: theme.Spacing.xl,
+                    marginTop: theme.Spacing.md,
+                }}>
+                    Her Quiet Place • Version 1.0.0
                 </Text>
-            </TouchableOpacity>
-
-            {/* App Version */}
-            <Text style={{
-                textAlign: 'center',
-                fontSize: 12,
-                color: theme.colors.textSecondary,
-                marginBottom: theme.Spacing.xl,
-                marginTop: theme.Spacing.md,
-            }}>
-                Version 1.0.0
-            </Text>
+            </ScrollView>
 
             {/* Edit Profile Modal */}
             <Modal
@@ -583,6 +692,7 @@ export default function ProfileScreen() {
                 onRequestClose={closeEditModal}
             >
                 <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+                    {/* Modal Header */}
                     <View style={[{
                         paddingHorizontal: theme.Spacing.lg,
                         paddingVertical: theme.Spacing.xl,
@@ -621,7 +731,7 @@ export default function ProfileScreen() {
                     </View>
 
                     <ScrollView style={{ flex: 1, padding: theme.Spacing.lg }} showsVerticalScrollIndicator={false}>
-                        {/* Avatar Section - Disabled for now */}
+                        {/* Avatar Section */}
                         <View style={{ alignItems: 'center', marginBottom: theme.Spacing.xl }}>
                             <View style={{
                                 width: 100,
@@ -707,7 +817,7 @@ export default function ProfileScreen() {
                     </ScrollView>
                 </View>
             </Modal>
-        </ScrollView>
+        </View>
     );
 }
 

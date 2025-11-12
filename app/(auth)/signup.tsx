@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -24,12 +24,19 @@ export default function SignupScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [shouldRedirect, setShouldRedirect] = useState(false);
 
-    // Redirect if user is already authenticated
-    if (user && !authLoading) {
-        router.replace('/(tabs)' as any);
-        return null;
-    }
+    // Use useEffect for navigation instead of during render
+    useEffect(() => {
+        if (user && !authLoading && !shouldRedirect) {
+            setShouldRedirect(true);
+
+            // Small delay to ensure component is mounted
+            setTimeout(() => {
+                router.replace('/(tabs)/HomeScreen');
+            }, 100);
+        }
+    }, [user, authLoading, shouldRedirect]);
 
     // Show loading while checking auth state
     if (authLoading) {
@@ -43,6 +50,23 @@ export default function SignupScreen() {
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
                 <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
                     Checking authentication...
+                </Text>
+            </View>
+        );
+    }
+
+    // Show loading while redirecting
+    if (shouldRedirect) {
+        return (
+            <View style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: theme.colors.background
+            }}>
+                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
+                <Text style={{ marginTop: theme.Spacing.md, color: theme.colors.text }}>
+                    Redirecting...
                 </Text>
             </View>
         );
