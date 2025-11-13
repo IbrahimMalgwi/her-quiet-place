@@ -1,3 +1,4 @@
+// app/(auth)/welcome.tsx
 import React from 'react';
 import {
     View,
@@ -59,66 +60,66 @@ export default function WelcomeScreen() {
                 backgroundColor: theme.colors.accentPrimary + '08',
             }}>
                 <View style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: 50,
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
                     backgroundColor: theme.colors.accentPrimary + '20',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginBottom: theme.Spacing.lg,
+                    marginBottom: theme.Spacing.md,
                     borderWidth: 2,
                     borderColor: theme.colors.accentPrimary + '30',
                 }}>
-                    <Ionicons name="leaf-outline" size={48} color={theme.colors.accentPrimary} />
+                    <Ionicons name="leaf-outline" size={36} color={theme.colors.accentPrimary} />
                 </View>
 
                 <Text style={{
-                    fontSize: 36,
+                    fontSize: 32,
                     fontWeight: 'bold',
                     color: theme.colors.text,
                     textAlign: 'center',
                     marginBottom: theme.Spacing.xs,
-                    lineHeight: 42,
+                    lineHeight: 38,
                 }}>
                     Her Quiet Place
                 </Text>
 
                 <Text style={{
-                    fontSize: 18,
+                    fontSize: 16,
                     color: theme.colors.accentPrimary,
                     textAlign: 'center',
                     fontStyle: 'italic',
-                    marginBottom: theme.Spacing.lg,
-                    lineHeight: 24,
+                    marginBottom: theme.Spacing.md,
+                    lineHeight: 22,
                 }}>
                     ...where wounded hearts find rest
                 </Text>
             </View>
 
-            {/* Vision Statement */}
+            {/* Vision Statement - Moved up with reduced margin */}
             <View style={{
-                paddingHorizontal: theme.Spacing.xl,
-                paddingVertical: theme.Spacing.lg,
+                paddingHorizontal: theme.Spacing.lg,
+                paddingVertical: theme.Spacing.md,
                 backgroundColor: theme.colors.backgroundCard,
                 marginHorizontal: theme.Spacing.lg,
-                marginTop: theme.Spacing.xl,
+                marginTop: theme.Spacing.lg, // Reduced from xl to lg
                 borderRadius: theme.BorderRadius.lg,
                 borderLeftWidth: 4,
                 borderLeftColor: theme.colors.accentPrimary,
             }}>
                 <Text style={{
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: '600',
                     color: theme.colors.text,
-                    marginBottom: theme.Spacing.md,
+                    marginBottom: theme.Spacing.sm,
                     textAlign: 'center',
                 }}>
                     A sanctuary for women navigating emotional overwhelm
                 </Text>
                 <Text style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     color: theme.colors.textSecondary,
-                    lineHeight: 20,
+                    lineHeight: 18,
                     textAlign: 'center',
                 }}>
                     Whether you're single, married, divorced, or silently struggling — this is your soft place to land, offering hope, healing, and strength one quiet moment at a time.
@@ -135,7 +136,7 @@ export default function WelcomeScreen() {
                 }}
             >
                 <Text style={{
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: 'bold',
                     color: theme.colors.text,
                     textAlign: 'center',
@@ -150,9 +151,9 @@ export default function WelcomeScreen() {
                         style={{
                             flexDirection: 'row',
                             alignItems: 'flex-start',
-                            marginBottom: theme.Spacing.lg,
+                            marginBottom: theme.Spacing.md, // Reduced from lg to md
                             backgroundColor: theme.colors.backgroundCard,
-                            padding: theme.Spacing.lg,
+                            padding: theme.Spacing.md, // Reduced from lg to md
                             borderRadius: theme.BorderRadius.lg,
                             borderLeftWidth: 4,
                             borderLeftColor: theme.colors.accentPrimary,
@@ -165,21 +166,21 @@ export default function WelcomeScreen() {
                     >
                         <View style={{
                             backgroundColor: theme.colors.accentPrimary + '15',
-                            padding: theme.Spacing.md,
+                            padding: theme.Spacing.sm, // Reduced from md to sm
                             borderRadius: theme.BorderRadius.round,
                             marginRight: theme.Spacing.md,
                             marginTop: 2,
                         }}>
                             <Ionicons
                                 name={feature.icon as any}
-                                size={24}
+                                size={20} // Reduced from 24 to 20
                                 color={theme.colors.accentPrimary}
                             />
                         </View>
 
                         <View style={{ flex: 1 }}>
                             <Text style={{
-                                fontSize: 18,
+                                fontSize: 16, // Reduced from 18 to 16
                                 fontWeight: '600',
                                 color: theme.colors.text,
                                 marginBottom: theme.Spacing.xs,
@@ -187,9 +188,9 @@ export default function WelcomeScreen() {
                                 {feature.title}
                             </Text>
                             <Text style={{
-                                fontSize: 14,
+                                fontSize: 13, // Reduced from 14 to 13
                                 color: theme.colors.textSecondary,
-                                lineHeight: 20,
+                                lineHeight: 18, // Reduced from 20 to 18
                             }}>
                                 {feature.description}
                             </Text>
@@ -200,18 +201,18 @@ export default function WelcomeScreen() {
                 {/* Core Purpose Section */}
                 <View style={{
                     backgroundColor: theme.colors.accentPrimary + '08',
-                    padding: theme.Spacing.xl,
+                    padding: theme.Spacing.lg, // Reduced from xl to lg
                     borderRadius: theme.BorderRadius.lg,
                     marginTop: theme.Spacing.md,
                     borderWidth: 1,
                     borderColor: theme.colors.accentPrimary + '20',
                 }}>
                     <Text style={{
-                        fontSize: 18,
+                        fontSize: 16, // Reduced from 18 to 16
                         fontWeight: 'bold',
                         color: theme.colors.text,
                         textAlign: 'center',
-                        marginBottom: theme.Spacing.lg,
+                        marginBottom: theme.Spacing.md, // Reduced from lg to md
                     }}>
                         Your Safe Space to:
                     </Text>
@@ -220,18 +221,18 @@ export default function WelcomeScreen() {
                         <View key={index} style={{
                             flexDirection: 'row',
                             alignItems: 'flex-start',
-                            marginBottom: theme.Spacing.md,
+                            marginBottom: theme.Spacing.sm, // Reduced from md to sm
                         }}>
                             <Ionicons
                                 name="checkmark-circle"
-                                size={20}
+                                size={18} // Reduced from 20 to 18
                                 color={theme.colors.accentPrimary}
                                 style={{ marginRight: theme.Spacing.sm, marginTop: 1 }}
                             />
                             <Text style={{
-                                fontSize: 14,
+                                fontSize: 13, // Reduced from 14 to 13
                                 color: theme.colors.text,
-                                lineHeight: 20,
+                                lineHeight: 18, // Reduced from 20 to 18
                                 flex: 1,
                             }}>
                                 {point}
@@ -243,17 +244,17 @@ export default function WelcomeScreen() {
                 {/* Target Audience Note */}
                 <View style={{
                     backgroundColor: theme.colors.backgroundSecondary,
-                    padding: theme.Spacing.lg,
+                    padding: theme.Spacing.md, // Reduced from lg to md
                     borderRadius: theme.BorderRadius.lg,
-                    marginTop: theme.Spacing.lg,
+                    marginTop: theme.Spacing.md, // Reduced from lg to md
                     borderLeftWidth: 3,
                     borderLeftColor: theme.colors.accentSecondary,
                 }}>
                     <Text style={{
-                        fontSize: 12,
+                        fontSize: 11, // Reduced from 12 to 11
                         color: theme.colors.textSecondary,
                         textAlign: 'center',
-                        lineHeight: 18,
+                        lineHeight: 16, // Reduced from 18 to 16
                         fontStyle: 'italic',
                     }}>
                         Designed for women (ages 20+) seeking emotional comfort and spiritual strength.
@@ -262,55 +263,62 @@ export default function WelcomeScreen() {
                 </View>
             </ScrollView>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Now side by side */}
             <View style={{
-                paddingHorizontal: theme.Spacing.xl,
-                paddingVertical: theme.Spacing.lg,
+                paddingHorizontal: theme.Spacing.lg, // Reduced from xl to lg
+                paddingVertical: theme.Spacing.md, // Reduced from lg to md
                 borderTopWidth: 1,
                 borderTopColor: theme.colors.border + '30',
                 gap: theme.Spacing.md,
                 backgroundColor: theme.colors.background,
             }}>
-                <TouchableOpacity
-                    style={[theme.button, {
-                        backgroundColor: theme.colors.accentPrimary,
-                        paddingVertical: theme.Spacing.lg,
-                    }]}
-                    onPress={() => router.push('/(auth)/login' as any)}
-                >
-                    <Text style={[theme.buttonText, {
-                        color: theme.colors.textInverse,
-                        fontSize: 16,
-                        fontWeight: '600',
-                    }]}>
-                        Sign In
-                    </Text>
-                </TouchableOpacity>
+                <View style={{
+                    flexDirection: 'row',
+                    gap: theme.Spacing.md,
+                }}>
+                    <TouchableOpacity
+                        style={[theme.button, {
+                            flex: 1,
+                            backgroundColor: theme.colors.accentPrimary,
+                            paddingVertical: theme.Spacing.md, // Reduced from lg to md
+                        }]}
+                        onPress={() => router.push('/(auth)/login' as any)}
+                    >
+                        <Text style={[theme.buttonText, {
+                            color: theme.colors.textInverse,
+                            fontSize: 14, // Reduced from 16 to 14
+                            fontWeight: '600',
+                        }]}>
+                            Sign In
+                        </Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={[theme.button, {
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        borderColor: theme.colors.accentPrimary,
-                        paddingVertical: theme.Spacing.lg,
-                    }]}
-                    onPress={() => router.push('/(auth)/signup' as any)}
-                >
-                    <Text style={[theme.buttonText, {
-                        color: theme.colors.accentPrimary,
-                        fontSize: 16,
-                        fontWeight: '600',
-                    }]}>
-                        Create Account
-                    </Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[theme.button, {
+                            flex: 1,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderColor: theme.colors.accentPrimary,
+                            paddingVertical: theme.Spacing.md, // Reduced from lg to md
+                        }]}
+                        onPress={() => router.push('/(auth)/signup' as any)}
+                    >
+                        <Text style={[theme.buttonText, {
+                            color: theme.colors.accentPrimary,
+                            fontSize: 14, // Reduced from 16 to 14
+                            fontWeight: '600',
+                        }]}>
+                            Create Account
+                        </Text>
+                    </TouchableOpacity>
+                </View>
 
                 <Text style={{
-                    fontSize: 11,
+                    fontSize: 10, // Reduced from 11 to 10
                     color: theme.colors.textSecondary,
                     textAlign: 'center',
-                    marginTop: theme.Spacing.sm,
-                    lineHeight: 16,
+                    marginTop: theme.Spacing.xs, // Reduced from sm to xs
+                    lineHeight: 14, // Reduced from 16 to 14
                 }}>
                     By continuing, you agree to our Terms of Service and Privacy Policy
                 </Text>
