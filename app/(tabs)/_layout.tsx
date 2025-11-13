@@ -2,35 +2,13 @@
 import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
+
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabsLayout() {
-    const { user, userRole, loading } = useAuth();
     const theme = useTheme();
 
-    if (loading) {
-        return (
-            <View style={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: theme.colors.background
-            }}>
-                <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
-            </View>
-        );
-    }
-
-    // Redirect to auth if not logged in, or to admin if admin user
-    if (!user) {
-        return <Redirect href="/(auth)/login" />;
-    }
-
-    if (userRole === 'admin') {
-        return <Redirect href="/admin" />;
-    }
 
     return (
         <Tabs
