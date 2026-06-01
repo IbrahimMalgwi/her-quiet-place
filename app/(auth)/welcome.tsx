@@ -6,13 +6,10 @@ import {
     TouchableOpacity,
     ScrollView,
     StatusBar,
-    Dimensions,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
     const theme = useTheme();
@@ -122,7 +119,7 @@ export default function WelcomeScreen() {
                     lineHeight: 18,
                     textAlign: 'center',
                 }}>
-                    Whether you're single, married, divorced, or silently struggling — this is your soft place to land, offering hope, healing, and strength one quiet moment at a time.
+                    Whether you&apos;re single, married, divorced, or silently struggling — this is your soft place to land, offering hope, healing, and strength one quiet moment at a time.
                 </Text>
             </View>
 

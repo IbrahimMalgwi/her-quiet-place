@@ -78,30 +78,10 @@ export const adminUserService = {
 
     async updateUserRole(userId: string, role: 'admin' | 'user'): Promise<void> {
         try {
-            // Only update user_roles table (references auth.users)
-            const { error: roleError } = await supabase
-                .from('user_roles')
-                .upsert({
-                    user_id: userId,
-                    role: role,
-                    created_at: new Date().toISOString()
-                }, {
-                    onConflict: 'user_id'
-                });
+            const { error } = await supabase
+                .rpc('set_user_role', { target_user_id: userId, target_role: role });
 
-            if (roleError) throw roleError;
-
-            // Try to update profiles table if the profile exists
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ role })
-                .eq('id', userId);
-
-            if (profileError) {
-                console.warn('User profile not found, skipping profile update:', profileError);
-                // This is okay - not all users have profiles yet
-            }
-
+            if (error) throw error;
         } catch (error) {
             console.error('Error updating user role:', error);
             throw error;

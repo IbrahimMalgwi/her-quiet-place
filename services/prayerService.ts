@@ -1,7 +1,69 @@
 import { supabase } from '../lib/supabase';
 import { PrayerRequest, CuratedPrayer, CreatePrayerRequest } from '../types/prayer';
 
+type PrayForRequestResult = {
+    success: boolean;
+    new_count: number;
+};
+
 export const prayerService = {
+    async getFavorites(): Promise<{ prayerRequestIds: Set<string>; curatedPrayerIds: Set<string> }> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return { prayerRequestIds: new Set(), curatedPrayerIds: new Set() };
+        }
+
+        const { data, error } = await supabase
+            .from('prayer_favorites')
+            .select('prayer_request_id, curated_prayer_id')
+            .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        return {
+            prayerRequestIds: new Set((data || []).flatMap(item => item.prayer_request_id ? [item.prayer_request_id] : [])),
+            curatedPrayerIds: new Set((data || []).flatMap(item => item.curated_prayer_id ? [item.curated_prayer_id] : [])),
+        };
+    },
+
+    async toggleFavorite(
+        favoriteType: 'prayer_request' | 'curated_prayer',
+        contentId: string
+    ): Promise<boolean> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const column = favoriteType === 'prayer_request' ? 'prayer_request_id' : 'curated_prayer_id';
+        const { data: existing, error: fetchError } = await supabase
+            .from('prayer_favorites')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq(column, contentId)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (existing) {
+            const { error } = await supabase
+                .from('prayer_favorites')
+                .delete()
+                .eq('id', existing.id);
+
+            if (error) throw error;
+            return false;
+        }
+
+        const { error } = await supabase
+            .from('prayer_favorites')
+            .insert({
+                user_id: user.id,
+                [column]: contentId,
+            });
+
+        if (error) throw error;
+        return true;
+    },
+
     // Get approved community prayers (only community prayers that are approved)
     async getApprovedPrayers(): Promise<PrayerRequest[]> {
         try {
@@ -115,60 +177,16 @@ export const prayerService = {
     // Increment prayer count for a prayer request
     async prayForRequest(prayerId: string): Promise<{ success: boolean; newCount?: number }> {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('User not authenticated');
+            const { data, error } = await supabase
+                .rpc('pray_for_request', { target_prayer_id: prayerId })
+                .single<PrayForRequestResult>();
 
-            // Check if user already prayed for this request
-            const { data: existing, error: checkError } = await supabase
-                .from('user_prayed_prayers')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('prayer_id', prayerId)
-                .single();
+            if (error) throw error;
 
-            if (checkError && checkError.code !== 'PGRST116') {
-                throw checkError;
-            }
-
-            if (existing) {
-                console.log('User already prayed for this request');
-                return { success: false };
-            }
-
-            // Record that user prayed for this request
-            const { error: insertError } = await supabase
-                .from('user_prayed_prayers')
-                .insert([{
-                    user_id: user.id,
-                    prayer_id: prayerId,
-                    created_at: new Date().toISOString()
-                }]);
-
-            if (insertError) throw insertError;
-
-            // Get current prayer count and increment
-            const { data: currentPrayer, error: fetchError } = await supabase
-                .from('prayer_requests')
-                .select('prayer_count')
-                .eq('id', prayerId)
-                .single();
-
-            if (fetchError) throw fetchError;
-
-            const newCount = (currentPrayer?.prayer_count || 0) + 1;
-
-            // Update prayer count
-            const { error: updateError } = await supabase
-                .from('prayer_requests')
-                .update({
-                    prayer_count: newCount,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', prayerId);
-
-            if (updateError) throw updateError;
-
-            return { success: true, newCount };
+            return {
+                success: data.success,
+                newCount: data.new_count,
+            };
         } catch (error) {
             console.error('Error in prayForRequest:', error);
             throw error;

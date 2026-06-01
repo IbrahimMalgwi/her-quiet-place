@@ -1,12 +1,11 @@
 // app/index.tsx
-import { useEffect } from 'react';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { View, ActivityIndicator } from 'react-native';
 import { useTheme } from '../constants/theme';
 
 export default function Index() {
-    const { user, loading, userRole } = useAuth();
+    const { user, loading, userRole, passwordRecovery } = useAuth();
     const theme = useTheme();
 
     if (loading) {
@@ -20,6 +19,10 @@ export default function Index() {
                 <ActivityIndicator size="large" color={theme.colors.accentPrimary} />
             </View>
         );
+    }
+
+    if (passwordRecovery) {
+        return <Redirect href="/(auth)/update-password" />;
     }
 
     // Redirect based on auth state

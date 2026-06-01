@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { profileService, Profile } from '../../services/profileService';
 import { settingsService, AppSettings } from '../../services/settingsService';
-import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 type ProfileStat = {
     label: string;
@@ -29,7 +29,6 @@ type TabType = 'stats' | 'settings';
 export default function ProfileScreen() {
     const theme = useTheme();
     const { user, signOut, userRole } = useAuth();
-    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [stats, setStats] = useState<ProfileStat[]>([]);
@@ -40,11 +39,64 @@ export default function ProfileScreen() {
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [statsLoading, setStatsLoading] = useState(true);
 
-    useEffect(() => {
-        loadProfileData();
+    const loadProfileStats = useCallback(async () => {
+        if (!user) {
+            setStats([]);
+            return;
+        }
+
+        try {
+            const [
+                { data: progress, error: progressError },
+                { count: audioFavoritesCount, error: audioFavoritesError },
+                { count: dailyFavoritesCount, error: dailyFavoritesError },
+                { count: prayerFavoritesCount, error: prayerFavoritesError },
+            ] = await Promise.all([
+                supabase
+                    .from('audio_progress')
+                    .select('progress_seconds, completed')
+                    .eq('user_id', user.id),
+                supabase
+                    .from('audio_favorites')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user.id),
+                supabase
+                    .from('user_favorites')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user.id),
+                supabase
+                    .from('prayer_favorites')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user.id),
+            ]);
+
+            if (progressError) throw progressError;
+            if (audioFavoritesError) throw audioFavoritesError;
+            if (dailyFavoritesError) throw dailyFavoritesError;
+            if (prayerFavoritesError) throw prayerFavoritesError;
+
+            const sessions = progress || [];
+            const minutes = Math.floor(
+                sessions.reduce((total, item) => total + item.progress_seconds, 0) / 60
+            );
+
+            setStats([
+                { label: 'Audio Listened', value: sessions.filter(item => item.completed).length, icon: 'musical-notes' },
+                {
+                    label: 'Favorites',
+                    value: (audioFavoritesCount || 0) + (dailyFavoritesCount || 0) + (prayerFavoritesCount || 0),
+                    icon: 'heart'
+                },
+                { label: 'Minutes', value: minutes, icon: 'time' },
+                { label: 'Sessions', value: sessions.length, icon: 'play' },
+            ]);
+        } catch (error) {
+            console.error('Error loading stats:', error);
+            setStats([]);
+        }
     }, [user]);
 
-    const loadProfileData = async () => {
+    const loadProfileData = useCallback(async () => {
         if (!user) {
             setLoading(false);
             return;
@@ -68,27 +120,11 @@ export default function ProfileScreen() {
             setLoading(false);
             setStatsLoading(false);
         }
-    };
+    }, [loadProfileStats, user]);
 
-    const loadProfileStats = async () => {
-        try {
-            // Simulate API call - replace with actual stats from your database
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const mockStats: ProfileStat[] = [
-                { label: 'Audio Listened', value: 24, icon: 'musical-notes' },
-                { label: 'Favorites', value: 8, icon: 'heart' },
-                { label: 'Minutes', value: 345, icon: 'time' },
-                { label: 'Sessions', value: 42, icon: 'play' },
-            ];
-
-            setStats(mockStats);
-        } catch (error) {
-            console.error('Error loading stats:', error);
-            // Set empty stats on error
-            setStats([]);
-        }
-    };
+    useEffect(() => {
+        loadProfileData();
+    }, [loadProfileData]);
 
     const handleSignOut = async () => {
         Alert.alert(

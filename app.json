@@ -95,12 +95,13 @@
       ],
       "expo-web-browser",
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Allow Her Quiet Place to access your microphone for audio features."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

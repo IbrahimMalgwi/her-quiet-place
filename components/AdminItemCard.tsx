@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Colors } from "../constants/theme";
+import { useTheme } from "../constants/theme";
 
 interface AdminItemCardProps {
     title: string;
@@ -15,22 +15,24 @@ export default function AdminItemCard({
                                           subtitle,
                                           onEdit,
                                           onDelete,
-                                          rightLabel,
-                                      }: AdminItemCardProps) {
+                                      rightLabel,
+                                  }: AdminItemCardProps) {
+    const theme = useTheme();
+
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.colors.backgroundSecondary }]}>
             <View style={{ flex: 1 }}>
-                <Text style={styles.title}>{title}</Text>
-                {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+                <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+                {subtitle && <Text style={[styles.subtitle, { color: theme.colors.text }]}>{subtitle}</Text>}
             </View>
-            {rightLabel && <Text style={styles.rightLabel}>{rightLabel}</Text>}
+            {rightLabel && <Text style={[styles.rightLabel, { color: theme.colors.textSecondary }]}>{rightLabel}</Text>}
             {onEdit && (
-                <TouchableOpacity onPress={onEdit} style={[styles.button, { backgroundColor: Colors.accentPrimary }]}>
+                <TouchableOpacity onPress={onEdit} style={[styles.button, { backgroundColor: theme.colors.accentPrimary }]}>
                     <Text style={styles.buttonText}>Edit</Text>
                 </TouchableOpacity>
             )}
             {onDelete && (
-                <TouchableOpacity onPress={onDelete} style={[styles.button, { backgroundColor: Colors.accentSecondary }]}>
+                <TouchableOpacity onPress={onDelete} style={[styles.button, { backgroundColor: theme.colors.accentSecondary }]}>
                     <Text style={styles.buttonText}>Delete</Text>
                 </TouchableOpacity>
             )}
@@ -40,7 +42,6 @@ export default function AdminItemCard({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.backgroundSecondary,
         borderRadius: 12,
         padding: 12,
         marginVertical: 8,
@@ -48,12 +49,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     title: {
-        color: Colors.textPrimary,
         fontSize: 16,
         fontWeight: "600",
     },
     subtitle: {
-        color: Colors.textPrimary,
         fontSize: 14,
         opacity: 0.8,
     },
@@ -69,7 +68,6 @@ const styles = StyleSheet.create({
     },
     rightLabel: {
         fontSize: 13,
-        color: Colors.textSecondary,
         marginLeft: 10,
     },
 });

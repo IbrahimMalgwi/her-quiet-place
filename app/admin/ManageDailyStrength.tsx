@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { adminDailyStrengthService, DailyStrength } from '../../services/adminDailyStrengthService';
 
 // Helper functions for proper typing
@@ -53,7 +52,6 @@ export default function ManageDailyStrength() {
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingStrength, setEditingStrength] = useState<DailyStrength | null>(null);
-    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // Form state - updated to match your database schema
     const [formData, setFormData] = useState({
@@ -64,18 +62,6 @@ export default function ManageDailyStrength() {
         is_active: true,
         approved: true, // Default to approved for admin
     });
-
-    // Categories for dropdown
-    const categories = [
-        'inspiration',
-        'scripture',
-        'prayer',
-        'reflection',
-        'encouragement',
-        'faith',
-        'hope',
-        'love'
-    ];
 
     useEffect(() => {
         loadDailyStrengths();
@@ -127,11 +113,6 @@ export default function ManageDailyStrength() {
         });
         setEditingStrength(strength);
         setModalVisible(true);
-    };
-
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(false);
-        // Date handling removed since your schema doesn't have scheduled_date
     };
 
     const formatDate = (dateString: string) => {

@@ -12,7 +12,6 @@ import {
     RefreshControl,
     Animated,
     Easing,
-    Dimensions,
     StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
@@ -21,8 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { prayerService } from '../../services/prayerService';
 import { PrayerRequest, CuratedPrayer, CreatePrayerRequest } from '../../types/prayer';
 import { useFocusEffect } from '@react-navigation/native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type PrayerIconName =
     | 'heart-outline'
@@ -65,6 +62,7 @@ export default function PrayerRoomScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [showPrayerModal, setShowPrayerModal] = useState(false);
     const [prayingFor, setPrayingFor] = useState<{ [key: string]: boolean }>({});
+    const [togglingFavorites, setTogglingFavorites] = useState<{ [key: string]: boolean }>({});
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -97,39 +95,33 @@ export default function PrayerRoomScreen() {
     const scaleAnim = useState(new Animated.Value(0.9))[0];
     const statsPulse = useState(new Animated.Value(1))[0];
 
-    useEffect(() => {
-        loadData();
-    }, [activeTab]);
-
-    useFocusEffect(
-        useCallback(() => {
-            if (communityPrayers.length > 0 || curatedPrayers.length > 0 || myPrayers.length > 0) {
-                loadData();
-            }
-        }, [communityPrayers.length, curatedPrayers.length, myPrayers.length])
-    );
-
-    useEffect(() => {
-        filterPrayers();
-    }, [communityPrayers, myPrayers, searchQuery, activeTab]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         if (!user) return;
 
         try {
             setLoading(true);
 
             // Load all data in parallel for better performance
-            const [curatedData, communityData, myPrayersData, prayerStats] = await Promise.all([
+            const [curatedData, communityData, myPrayersData, prayerStats, favorites] = await Promise.all([
                 prayerService.getCuratedPrayers(),
                 prayerService.getApprovedPrayers(),
                 prayerService.getUserPrayers(),
-                prayerService.getPrayerStats()
+                prayerService.getPrayerStats(),
+                prayerService.getFavorites(),
             ]);
 
-            setCuratedPrayers(curatedData);
-            setCommunityPrayers(communityData);
-            setMyPrayers(myPrayersData);
+            setCuratedPrayers(curatedData.map(prayer => ({
+                ...prayer,
+                is_favorited: favorites.curatedPrayerIds.has(prayer.id),
+            })));
+            setCommunityPrayers(communityData.map(prayer => ({
+                ...prayer,
+                is_favorited: favorites.prayerRequestIds.has(prayer.id),
+            })));
+            setMyPrayers(myPrayersData.map(prayer => ({
+                ...prayer,
+                is_favorited: favorites.prayerRequestIds.has(prayer.id),
+            })));
             setStats({
                 prayedCount: prayerStats.prayedCount,
                 pendingCount: prayerStats.pendingCount,
@@ -180,9 +172,15 @@ export default function PrayerRoomScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [fadeAnim, scaleAnim, slideAnim, statsPulse, user]);
 
-    const filterPrayers = () => {
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [loadData])
+    );
+
+    const filterPrayers = useCallback(() => {
         if (!searchQuery.trim()) {
             setFilteredPrayers(activeTab === 'community' ? communityPrayers : myPrayers);
             return;
@@ -195,7 +193,11 @@ export default function PrayerRoomScreen() {
         );
 
         setFilteredPrayers(filtered);
-    };
+    }, [activeTab, communityPrayers, myPrayers, searchQuery]);
+
+    useEffect(() => {
+        filterPrayers();
+    }, [filterPrayers]);
 
     const handleRefresh = () => {
         setRefreshing(true);
@@ -211,13 +213,18 @@ export default function PrayerRoomScreen() {
         setPrayingFor(prev => ({ ...prev, [prayerId]: true }));
 
         try {
-            await prayerService.prayForRequest(prayerId);
+            const result = await prayerService.prayForRequest(prayerId);
+
+            if (!result.success) {
+                Alert.alert('Already Counted', 'You have already prayed for this request.');
+                return;
+            }
 
             // Update local state with animation
             setCommunityPrayers(prev =>
                 prev.map(prayer =>
                     prayer.id === prayerId
-                        ? { ...prayer, prayer_count: prayer.prayer_count + 1 }
+                        ? { ...prayer, prayer_count: result.newCount ?? prayer.prayer_count + 1 }
                         : prayer
                 )
             );
@@ -232,6 +239,35 @@ export default function PrayerRoomScreen() {
             Alert.alert('Error', 'Failed to record your prayer');
         } finally {
             setPrayingFor(prev => ({ ...prev, [prayerId]: false }));
+        }
+    };
+
+    const handleToggleFavorite = async (
+        favoriteType: 'prayer_request' | 'curated_prayer',
+        prayerId: string
+    ) => {
+        const favoriteKey = `${favoriteType}:${prayerId}`;
+        setTogglingFavorites(prev => ({ ...prev, [favoriteKey]: true }));
+
+        try {
+            const isFavorited = await prayerService.toggleFavorite(favoriteType, prayerId);
+
+            if (favoriteType === 'curated_prayer') {
+                setCuratedPrayers(prev => prev.map(prayer =>
+                    prayer.id === prayerId ? { ...prayer, is_favorited: isFavorited } : prayer
+                ));
+            } else {
+                const updatePrayer = (prayer: PrayerRequest) =>
+                    prayer.id === prayerId ? { ...prayer, is_favorited: isFavorited } : prayer;
+
+                setCommunityPrayers(prev => prev.map(updatePrayer));
+                setMyPrayers(prev => prev.map(updatePrayer));
+            }
+        } catch (error) {
+            console.error('Error toggling prayer favorite:', error);
+            Alert.alert('Error', 'Failed to update favorites');
+        } finally {
+            setTogglingFavorites(prev => ({ ...prev, [favoriteKey]: false }));
         }
     };
 
@@ -584,6 +620,22 @@ export default function PrayerRoomScreen() {
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.md }}>
+                    <TouchableOpacity
+                        onPress={() => handleToggleFavorite('prayer_request', prayer.id)}
+                        disabled={togglingFavorites[`prayer_request:${prayer.id}`]}
+                        style={{ padding: theme.Spacing.xs }}
+                    >
+                        {togglingFavorites[`prayer_request:${prayer.id}`] ? (
+                            <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
+                        ) : (
+                            <Ionicons
+                                name={prayer.is_favorited ? 'bookmark' : 'bookmark-outline'}
+                                size={16}
+                                color={prayer.is_favorited ? theme.colors.accentPrimary : theme.colors.textSecondary}
+                            />
+                        )}
+                    </TouchableOpacity>
+
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.xs }}>
                         <Ionicons name="heart" size={14} color={theme.colors.accentPrimary} />
                         <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
@@ -674,12 +726,29 @@ export default function PrayerRoomScreen() {
                 }}>
                     {prayer.type}
                 </Text>
-                <Text style={{
-                    fontSize: 11,
-                    color: theme.colors.textSecondary,
-                }}>
-                    {getWordCount(prayer.content)} words
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.md }}>
+                    <Text style={{
+                        fontSize: 11,
+                        color: theme.colors.textSecondary,
+                    }}>
+                        {getWordCount(prayer.content)} words
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() => handleToggleFavorite('curated_prayer', prayer.id)}
+                        disabled={togglingFavorites[`curated_prayer:${prayer.id}`]}
+                        style={{ padding: theme.Spacing.xs }}
+                    >
+                        {togglingFavorites[`curated_prayer:${prayer.id}`] ? (
+                            <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
+                        ) : (
+                            <Ionicons
+                                name={prayer.is_favorited ? 'bookmark' : 'bookmark-outline'}
+                                size={16}
+                                color={prayer.is_favorited ? theme.colors.accentPrimary : theme.colors.textSecondary}
+                            />
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
         </Animated.View>
     );

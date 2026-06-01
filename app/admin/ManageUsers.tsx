@@ -106,8 +106,28 @@ export default function ManageUsers() {
                         {!user.has_profile && ' • No Profile'}
                     </Text>
 
-                    {/* ... rest of your UserCard code ... */}
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                        Joined {formatDate(user.created_at)} • {user.prayer_count} prayers
+                    </Text>
                 </View>
+                <TouchableOpacity
+                    onPress={() => toggleUserRole(user)}
+                    disabled={actionLoading === user.id}
+                    style={{
+                        backgroundColor: theme.colors.accentPrimary,
+                        borderRadius: theme.BorderRadius.sm,
+                        paddingHorizontal: theme.Spacing.sm,
+                        paddingVertical: theme.Spacing.xs,
+                    }}
+                >
+                    {actionLoading === user.id ? (
+                        <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                    ) : (
+                        <Text style={{ color: theme.colors.textInverse, fontSize: 12, fontWeight: '600' }}>
+                            Make {user.role === 'admin' ? 'User' : 'Admin'}
+                        </Text>
+                    )}
+                </TouchableOpacity>
             </View>
         </View>
     );

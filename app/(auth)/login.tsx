@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     View,
@@ -23,17 +23,13 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Redirect if user is already authenticated
-    if (user && !authLoading) {
-        console.log('User authenticated, role:', userRole);
+    useEffect(() => {
+        if (!user || authLoading) return;
 
-        if (userRole === 'admin') {
-            router.replace('/admin' as any);
-        } else {
-            router.replace('/(tabs)' as any);
-        }
-        return null;
-    }
+        router.replace(userRole === 'admin' ? '/admin' : '/(tabs)/HomeScreen');
+    }, [authLoading, user, userRole]);
+
+    if (user && !authLoading) return null;
 
     // Show loading while checking auth state
     if (authLoading) {
@@ -218,6 +214,18 @@ export default function LoginScreen() {
                             onSubmitEditing={handleLogin}
                         />
                     </View>
+
+                    <Link href="/(auth)/forgot-password" asChild>
+                        <TouchableOpacity style={{ alignSelf: 'flex-end' }}>
+                            <Text style={{
+                                color: theme.colors.accentPrimary,
+                                fontSize: 14,
+                                fontWeight: '600'
+                            }}>
+                                Forgot Password?
+                            </Text>
+                        </TouchableOpacity>
+                    </Link>
 
                     {/* Login Button */}
                     <TouchableOpacity

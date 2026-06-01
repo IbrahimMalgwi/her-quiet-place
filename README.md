@@ -1,50 +1,70 @@
-# Welcome to your Expo app 👋
+# Her Quiet Place
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Her Quiet Place is an Expo Router mobile application for journaling, prayer requests, daily encouragement, audio comfort resources, and profile settings. It uses Supabase for authentication, data persistence, row-level security, and audio storage.
 
-## Get started
+## Requirements
 
-1. Install dependencies
+- Node.js and npm
+- Expo tooling through `npx expo`
+- A Supabase project
+
+## Setup
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Create a local `.env` file from `.env.example` and add your Supabase project values:
 
-   ```bash
-   npx expo start
+   ```dotenv
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    ```
 
-In the output, you'll find options to open the app in a
+3. Link your Supabase project and apply the migration:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   npx supabase link
+   npx supabase db push
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+4. In Supabase Dashboard, open **Authentication > URL Configuration** and add this redirect URL:
 
-## Get a fresh project
+   ```text
+   herquietplace://update-password
+   ```
 
-When you're ready, run:
+   Add your deployed web `/update-password` URL as an additional redirect URL if you use the web build.
+
+5. Start the application:
+
+   ```bash
+   npm start
+   ```
+
+## Commands
 
 ```bash
-npm run reset-project
+npm run lint
+npx tsc --noEmit
+npm run android
+npm run ios
+npm run web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Android builds are configured through EAS:
 
-## Learn more
+```bash
+npm run build:apk-cloud
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Security Notes
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Do not commit `.env`.
+- The mobile app must use the Supabase anon key, never the service-role key.
+- Apply `supabase/migrations/202606010001_harden_application.sql` before testing authenticated workflows.
+- Apply later migrations in filename order to keep RLS policies and API grants hardened.
+- In Supabase Dashboard, enable leaked password protection under **Authentication > Providers > Email** when the project plan supports it.
+- Promote administrators through trusted database tooling. The client RPC only permits existing administrators to change roles.

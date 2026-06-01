@@ -333,7 +333,7 @@ export default function ManageAudio() {
                             marginTop: theme.Spacing.sm,
                             textAlign: 'center',
                         }}>
-                            Tap "Upload Audio" to add your first audio file
+                            Tap &quot;Upload Audio&quot; to add your first audio file
                         </Text>
                     </View>
                 ) : (

@@ -12,6 +12,7 @@ export interface PrayerRequest {
     prayer_count: number;
     created_at: string;
     updated_at: string;
+    is_favorited?: boolean;
     profiles?: {
         display_name?: string;
         avatar_url?: string;
@@ -28,6 +29,7 @@ export interface CuratedPrayer {
     created_by: string;
     created_at: string;
     updated_at: string;
+    is_favorited?: boolean;
 }
 
 export interface CreatePrayerRequest {

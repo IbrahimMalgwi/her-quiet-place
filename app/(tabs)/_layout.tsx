@@ -1,7 +1,6 @@
 // app/(tabs)/_layout.tsx
 import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
-import { useAuth } from '../../contexts/AuthContext';
+import { Tabs } from 'expo-router';
 
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,6 +96,20 @@ export default function TabsLayout() {
                         />
                     ),
                     headerTitle: 'My Profile',
+                }}
+            />
+            <Tabs.Screen
+                name="FavoritesScreen"
+                options={{
+                    title: 'Saved',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "bookmark" : "bookmark-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                    headerTitle: 'My Favorites',
                 }}
             />
         </Tabs>

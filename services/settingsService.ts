@@ -18,8 +18,11 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 const SETTINGS_KEY = 'app_settings';
+type SettingsListener = (settings: AppSettings) => void;
 
 class SettingsService {
+    private listeners = new Set<SettingsListener>();
+
     async getSettings(): Promise<AppSettings> {
         try {
             const settingsJson = await AsyncStorage.getItem(SETTINGS_KEY);
@@ -39,6 +42,7 @@ class SettingsService {
             const newSettings = { ...currentSettings, ...updates };
 
             await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+            this.notify(newSettings);
             return newSettings;
         } catch (error) {
             console.error('Error updating settings:', error);
@@ -49,11 +53,21 @@ class SettingsService {
     async resetSettings(): Promise<AppSettings> {
         try {
             await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(DEFAULT_SETTINGS));
+            this.notify(DEFAULT_SETTINGS);
             return DEFAULT_SETTINGS;
         } catch (error) {
             console.error('Error resetting settings:', error);
             throw error;
         }
+    }
+
+    subscribe(listener: SettingsListener): () => void {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    private notify(settings: AppSettings) {
+        this.listeners.forEach(listener => listener(settings));
     }
 }
 

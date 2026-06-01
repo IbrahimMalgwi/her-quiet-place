@@ -14,6 +14,25 @@ export type AudioComfort = {
     updated_at: string;
     download_count: number;
     play_count: number;
+    is_favorited?: boolean;
+    progress?: number;
+    current_position?: number;
+    storage_path?: string;
+    bucket_name?: string;
+};
+
+export type PlaybackState = {
+    isPlaying: boolean;
+    currentPosition: number;
+    duration: number;
+};
+
+export type AudioProgress = {
+    user_id: string;
+    audio_id: string;
+    progress_seconds: number;
+    completed: boolean;
+    updated_at: string;
 };
 
 // Types for creating and updating audio comforts

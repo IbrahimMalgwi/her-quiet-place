@@ -12,7 +12,6 @@ import {
     RefreshControl,
     Animated,
     Easing,
-    Dimensions,
     StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
@@ -21,8 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { journalService } from '../../services/journalService';
 import { JournalEntry, MoodType } from '../../types/journal';
 import { useFocusEffect } from '@react-navigation/native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type MoodIconName =
     | 'happy-outline'
@@ -35,17 +32,6 @@ type MoodIconName =
     | 'bed-outline'
     | 'flash-outline'
     | 'ellipse-outline';
-
-type JournalIconName =
-    | MoodIconName
-    | 'journal-outline'
-    | 'add'
-    | 'trash-outline'
-    | 'search-outline'
-    | 'close-outline'
-    | 'filter-outline'
-    | 'stats-chart-outline'
-    | 'calendar-outline';
 
 interface MoodStats {
     mood: MoodType;
@@ -87,25 +73,7 @@ export default function JournalScreen() {
     const slideAnim = useState(new Animated.Value(20))[0];
     const scaleAnim = useState(new Animated.Value(0.9))[0];
 
-    useEffect(() => {
-        loadEntries();
-    }, []);
-
-    useFocusEffect(
-        useCallback(() => {
-            // Refresh data when screen comes into focus
-            if (entries.length > 0) {
-                loadEntries();
-            }
-        }, [entries.length])
-    );
-
-    useEffect(() => {
-        filterEntries();
-        calculateMoodStats();
-    }, [entries, searchQuery, selectedMoodFilter]);
-
-    const loadEntries = async () => {
+    const loadEntries = useCallback(async () => {
         if (!user) {
             console.log('No user found');
             return;
@@ -144,9 +112,15 @@ export default function JournalScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [fadeAnim, scaleAnim, slideAnim, user]);
 
-    const filterEntries = () => {
+    useFocusEffect(
+        useCallback(() => {
+            loadEntries();
+        }, [loadEntries])
+    );
+
+    const filterEntries = useCallback(() => {
         let filtered = entries;
 
         // Apply search filter
@@ -163,9 +137,9 @@ export default function JournalScreen() {
         }
 
         setFilteredEntries(filtered);
-    };
+    }, [entries, searchQuery, selectedMoodFilter]);
 
-    const calculateMoodStats = () => {
+    const calculateMoodStats = useCallback(() => {
         const moodCounts: Record<MoodType, number> = {
             happy: 0, sad: 0, anxious: 0, peaceful: 0, grateful: 0,
             reflective: 0, hopeful: 0, tired: 0, excited: 0, neutral: 0
@@ -188,7 +162,12 @@ export default function JournalScreen() {
             .sort((a, b) => b.count - a.count);
 
         setMoodStats(stats);
-    };
+    }, [entries]);
+
+    useEffect(() => {
+        filterEntries();
+        calculateMoodStats();
+    }, [calculateMoodStats, filterEntries]);
 
     const handleRefresh = () => {
         setRefreshing(true);

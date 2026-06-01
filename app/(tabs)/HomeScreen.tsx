@@ -10,15 +10,12 @@ import {
     Share,
     Alert,
     Animated,
-    Dimensions,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface DailyItem {
     id: string;
@@ -53,6 +50,9 @@ const enhanceItemWithFavorites = (item: any, favorites: any[]): DailyItem => {
     };
 };
 
+const isPersistedDailyItem = (item: DailyItem | null | undefined): item is DailyItem =>
+    !!item && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.id);
+
 export default function HomeScreen() {
     const theme = useTheme();
     const { user, signOut } = useAuth();
@@ -71,7 +71,6 @@ export default function HomeScreen() {
     const [todaysAffirmation, setTodaysAffirmation] = useState<DailyAffirmation | null>(null);
 
     // Animation refs
-    const fadeAnim = useRef(new Animated.Value(0)).current;
     const streakPulse = useRef(new Animated.Value(1)).current;
 
     // Reset data when user logs out
@@ -99,6 +98,8 @@ export default function HomeScreen() {
         } else {
             setLoading(false);
         }
+        // Fetch functions deliberately use the latest render's user and animation state.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const fetchAllData = async () => {
@@ -181,7 +182,9 @@ export default function HomeScreen() {
             // Check favorites if user is logged in
             if (user && (quoteData || verseData || prayerData)) {
                 console.log('User is logged in, checking favorites...');
-                const itemIds = [quoteData?.id, verseData?.id, prayerData?.id].filter(Boolean) as string[];
+                const itemIds = [quoteData, verseData, prayerData]
+                    .filter(isPersistedDailyItem)
+                    .map(item => item.id);
 
                 if (itemIds.length > 0) {
                     const { data: favorites, error: favoritesError } = await supabase
@@ -258,12 +261,7 @@ export default function HomeScreen() {
 
                 // Update used count
                 supabase
-                    .from('daily_affirmations')
-                    .update({
-                        used_count: (randomAffirmation.used_count || 0) + 1,
-                        last_used_at: new Date().toISOString()
-                    })
-                    .eq('id', randomAffirmation.id)
+                    .rpc('increment_affirmation_use', { target_affirmation_id: randomAffirmation.id })
                     .then(({ error }) => {
                         if (error) console.error('Error updating affirmation count:', error);
                     });
@@ -320,7 +318,7 @@ export default function HomeScreen() {
         try {
             console.log('Updating user streak for user:', user.id);
             const { data, error } = await supabase
-                .rpc('update_user_streak', { user_id: user.id });
+                .rpc('update_user_streak');
 
             if (error) {
                 console.error('Error updating streak:', error);
@@ -356,14 +354,14 @@ export default function HomeScreen() {
         }
     };
 
-    const handleRefresh = useCallback(() => {
+    const handleRefresh = () => {
         console.log('Manual refresh triggered');
         setRefreshing(true);
         fetchAllData().finally(() => {
             setRefreshing(false);
             console.log('Manual refresh completed');
         });
-    }, [fetchAllData]);
+    };
 
     const refreshAffirmation = async () => {
         console.log('Refreshing affirmation...');
@@ -391,10 +389,13 @@ export default function HomeScreen() {
             return;
         }
 
-        try {
-            const currentItem = dailyItems[itemType];
-            if (!currentItem) return;
+        const currentItem = dailyItems[itemType];
+        if (!isPersistedDailyItem(currentItem)) {
+            Alert.alert("Unavailable", "Fallback content cannot be saved. Please try again after refreshing.");
+            return;
+        }
 
+        try {
             if (currentItem.is_favorited && currentItem.favorite_id) {
                 // Remove favorite
                 await supabase
@@ -651,6 +652,7 @@ export default function HomeScreen() {
                                 justifyContent: 'center',
                             }}
                             onPress={() => toggleFavorite(item.id, type)}
+                            disabled={!isPersistedDailyItem(item)}
                         >
                             <Ionicons
                                 name={item.is_favorited ? "bookmark" : "bookmark-outline"}
@@ -662,7 +664,7 @@ export default function HomeScreen() {
                                 fontSize: 13,
                                 fontWeight: '600',
                             }}>
-                                {item.is_favorited ? "Saved" : "Save"}
+                                {!isPersistedDailyItem(item) ? "Unavailable" : item.is_favorited ? "Saved" : "Save"}
                             </Text>
                         </TouchableOpacity>
                     </View>

@@ -1,64 +1,125 @@
 // services/audioService.ts
 import { AudioComfort, AudioProgress } from '../types/audio';
-import { audioStorageService } from './audioStorageService';
+import { supabase } from '../lib/supabase';
 
 class AudioService {
     /**
-     * Get all audio comforts from storage
+     * Get active audio comforts and mark the current user's favorites.
      */
     async getAudioComforts(): Promise<AudioComfort[]> {
-        return await audioStorageService.getAudioFiles();
+        const [{ data: audios, error }, { data: { user } }] = await Promise.all([
+            supabase
+                .from('audio_comforts')
+                .select('*')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false }),
+            supabase.auth.getUser(),
+        ]);
+
+        if (error) throw error;
+        if (!user || !audios?.length) return audios || [];
+
+        const { data: favorites, error: favoritesError } = await supabase
+            .from('audio_favorites')
+            .select('audio_id')
+            .eq('user_id', user.id)
+            .in('audio_id', audios.map(audio => audio.id));
+
+        if (favoritesError) throw favoritesError;
+
+        const favoriteIds = new Set((favorites || []).map(favorite => favorite.audio_id));
+        return audios.map(audio => ({
+            ...audio,
+            is_favorited: favoriteIds.has(audio.id),
+        }));
     }
 
     /**
-     * Get audio by category from storage
+     * Get audio by category.
      */
     async getAudioByCategory(category: string): Promise<AudioComfort[]> {
-        return await audioStorageService.getAudioByCategory(category);
+        const audios = await this.getAudioComforts();
+        return audios.filter(audio => audio.category?.toLowerCase() === category.toLowerCase());
     }
 
     /**
-     * Get categories from storage
+     * Get categories from active audio.
      */
     async getCategories(): Promise<string[]> {
-        return await audioStorageService.getCategories();
+        const audios = await this.getAudioComforts();
+        return [...new Set(audios.map(audio => audio.category).filter(Boolean))].sort() as string[];
     }
 
-    /**
-     * For storage-only audio, we'll handle favorites locally
-     */
     async getFavorites(userId: string): Promise<AudioComfort[]> {
-        console.log('Favorites not implemented for storage audio');
-        return [];
+        const { data, error } = await supabase
+            .from('audio_favorites')
+            .select('audio_comforts(*)')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        return (data || []).flatMap(favorite => favorite.audio_comforts || []);
     }
 
-    /**
-     * Toggle favorite locally (no database)
-     */
     async toggleFavorite(audioId: string, userId: string): Promise<boolean> {
-        console.log('Favorite toggle simulated for:', audioId);
+        const { data: favorite, error: fetchError } = await supabase
+            .from('audio_favorites')
+            .select('audio_id')
+            .eq('audio_id', audioId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        if (favorite) {
+            const { error } = await supabase
+                .from('audio_favorites')
+                .delete()
+                .eq('audio_id', audioId)
+                .eq('user_id', userId);
+
+            if (error) throw error;
+            return false;
+        }
+
+        const { error } = await supabase
+            .from('audio_favorites')
+            .insert({ audio_id: audioId, user_id: userId });
+
+        if (error) throw error;
         return true;
     }
 
-    /**
-     * Get progress locally (no database)
-     */
     async getProgress(audioId: string, userId: string): Promise<AudioProgress | null> {
-        return null;
+        const { data, error } = await supabase
+            .from('audio_progress')
+            .select('*')
+            .eq('audio_id', audioId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data;
     }
 
-    /**
-     * Save progress locally (no database)
-     */
     async saveProgress(audioId: string, progressSeconds: number, userId: string, completed: boolean = false): Promise<void> {
-        console.log('Progress save simulated for:', audioId, progressSeconds);
+        const { error } = await supabase
+            .from('audio_progress')
+            .upsert({
+                audio_id: audioId,
+                user_id: userId,
+                progress_seconds: Math.floor(progressSeconds),
+                completed,
+                updated_at: new Date().toISOString(),
+            });
+
+        if (error) throw error;
     }
 
-    /**
-     * Increment play count for an audio
-     */
     async incrementPlayCount(audioId: string): Promise<void> {
-        console.log('Play count increment for:', audioId);
+        const { error } = await supabase
+            .rpc('increment_audio_play_count', { target_audio_id: audioId });
+
+        if (error) throw error;
     }
 }
 

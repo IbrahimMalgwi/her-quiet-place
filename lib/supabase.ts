@@ -2,6 +2,7 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 // Secure storage adapter for Supabase
 const ExpoSecureStoreAdapter = {
@@ -16,12 +17,32 @@ const ExpoSecureStoreAdapter = {
     },
 };
 
-const supabaseUrl = 'https://qlpzixkgifjefjsmmtke.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFscHppeGtnaWZqZWZqc21tdGtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MjM5MzYsImV4cCI6MjA3NzQ5OTkzNn0.RR7FuEQ6KQ1zL-OgJ1ur1dJvPeV-V6mXqNREJrCs-P0';
+const WebStorageAdapter = {
+    getItem: (key: string) => {
+        return Promise.resolve(typeof window === 'undefined' ? null : window.localStorage.getItem(key));
+    },
+    setItem: (key: string, value: string) => {
+        if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+        return Promise.resolve();
+    },
+    removeItem: (key: string) => {
+        if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+        return Promise.resolve();
+    },
+};
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+        'Missing Supabase configuration. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
+    );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-        storage: ExpoSecureStoreAdapter,
+        storage: Platform.OS === 'web' ? WebStorageAdapter : ExpoSecureStoreAdapter,
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,

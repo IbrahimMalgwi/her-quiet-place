@@ -13,7 +13,12 @@ import {
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { adminPrayerService, CuratedPrayer, CreateCuratedPrayer } from '../../services/adminPrayerService';
+import { adminPrayerService } from '../../services/adminPrayerService';
+import { CuratedPrayer } from '../../types/prayer';
+
+type CreateCuratedPrayer = Pick<CuratedPrayer, 'title' | 'content' | 'type'> & {
+    category?: string;
+};
 
 export default function ManageCuratedPrayers() {
     const theme = useTheme();

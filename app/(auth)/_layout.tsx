@@ -44,6 +44,20 @@ export default function AuthLayout() {
                         animation: 'slide_from_right',
                     }}
                 />
+                <Stack.Screen
+                    name="forgot-password"
+                    options={{
+                        title: 'Reset Password',
+                        animation: 'slide_from_right',
+                    }}
+                />
+                <Stack.Screen
+                    name="update-password"
+                    options={{
+                        title: 'Choose New Password',
+                        animation: 'slide_from_right',
+                    }}
+                />
             </Stack>
         </>
     );

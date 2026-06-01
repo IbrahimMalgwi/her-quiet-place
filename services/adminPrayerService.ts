@@ -166,13 +166,6 @@ export const adminPrayerService = {
 
     async deletePrayer(prayerId: string): Promise<void> {
         try {
-            // First delete related prayed prayers
-            await supabase
-                .from('user_prayed_prayers')
-                .delete()
-                .eq('prayer_id', prayerId);
-
-            // Then delete the prayer
             const { error } = await supabase
                 .from('prayer_requests')
                 .delete()

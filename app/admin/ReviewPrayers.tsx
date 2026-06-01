@@ -130,20 +130,6 @@ export default function ReviewPrayers() {
         });
     };
 
-    const getCategoryColor = (category: string) => {
-        const colors: { [key: string]: string } = {
-            healing: '#10b981',
-            family: '#6366f1',
-            guidance: '#f59e0b',
-            peace: '#06b6d4',
-            strength: '#ef4444',
-            gratitude: '#8b5cf6',
-            faith: '#ec4899',
-            hope: '#dc2626',
-        };
-        return colors[category] || theme.colors.accentPrimary;
-    };
-
     const getStatusColor = (prayer: AdminPrayer) => {
         if (prayer.status === 'approved') return theme.colors.success;
         if (prayer.status === 'rejected') return theme.colors.error;

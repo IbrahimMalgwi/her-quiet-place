@@ -1,5 +1,5 @@
 // app/[...unmatched].tsx
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../constants/theme';
 import { useEffect } from 'react';

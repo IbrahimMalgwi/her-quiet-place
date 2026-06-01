@@ -1,8 +1,11 @@
 // context/AuthContext.tsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { getQueryParams } from 'expo-auth-session/build/QueryParams';
+import { Platform } from 'react-native';
 
 // Add this for OAuth to work properly in Expo
 WebBrowser.maybeCompleteAuthSession();
@@ -13,9 +16,14 @@ interface AuthContextType {
     loading: boolean;
     signIn: (email: string, password: string) => Promise<{ error: any }>;
     signUp: (email: string, password: string) => Promise<{ error: any }>;
+    requestPasswordReset: (email: string) => Promise<{ error: any }>;
+    updatePassword: (password: string) => Promise<{ error: any }>;
     signOut: () => Promise<void>;
+    refreshSession: () => Promise<void>;
     userRole: 'user' | 'admin' | null;
     isAuthenticated: boolean;
+    passwordRecovery: boolean;
+    passwordRecoveryError: string | null;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,60 +33,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
+    const [passwordRecovery, setPasswordRecovery] = useState(false);
+    const [passwordRecoveryError, setPasswordRecoveryError] = useState<string | null>(null);
 
     const isAuthenticated = !!user;
 
-    const checkUserRole = async (user: User) => {
+    const checkUserRole = useCallback(async (user: User) => {
         try {
-            // Try to get role from user_roles table first
             const { data, error } = await supabase
                 .from('user_roles')
                 .select('role')
                 .eq('user_id', user.id)
                 .single();
 
-            if (data && !error) {
-                console.log('Role from user_roles table:', data.role);
-                setUserRole(data.role as 'user' | 'admin');
-                return;
+            if (error) {
+                throw error;
             }
 
-            // If no role found in user_roles, create a default one
-            if (error && error.code === 'PGRST116') { // No rows returned
-                console.log('No role found, creating default user role');
-                const { error: insertError } = await supabase
-                    .from('user_roles')
-                    .insert([
-                        {
-                            user_id: user.id,
-                            role: 'user',
-                            created_at: new Date().toISOString()
-                        }
-                    ]);
-
-                if (!insertError) {
-                    setUserRole('user');
-                    return;
-                }
-            }
-
-            // Fallback: Check user_metadata
-            const metadata = user.user_metadata as { role?: string };
-            if (metadata?.role === 'admin') {
-                console.log('Role from user_metadata:', metadata.role);
-                setUserRole('admin');
-                return;
-            }
-
-            // Final fallback: Default to user role
-            console.log('Defaulting to user role');
-            setUserRole('user');
-
+            setUserRole(data.role === 'admin' ? 'admin' : 'user');
         } catch (error) {
             console.error('Error checking user role:', error);
-            setUserRole('user'); // Default to user role on error
+            setUserRole('user');
         }
-    };
+    }, []);
+
+    const handleAuthUrl = useCallback(async (url: string) => {
+        if (!url.includes('update-password')) return;
+
+        setPasswordRecovery(true);
+        setPasswordRecoveryError(null);
+
+        try {
+            const { params, errorCode } = getQueryParams(url);
+
+            if (errorCode || params.error) {
+                throw new Error(params.error_description || params.error || 'Password reset link is invalid or expired.');
+            }
+
+            if (params.code) {
+                const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+                if (error) throw error;
+                return;
+            }
+
+            if (params.access_token && params.refresh_token) {
+                const { error } = await supabase.auth.setSession({
+                    access_token: params.access_token,
+                    refresh_token: params.refresh_token,
+                });
+                if (error) throw error;
+                return;
+            }
+
+            throw new Error('Password reset link is invalid or expired.');
+        } catch (error: any) {
+            console.error('Password recovery link error:', error);
+            setPasswordRecoveryError(error.message || 'Password reset link is invalid or expired.');
+        }
+    }, []);
 
     useEffect(() => {
         let mounted = true;
@@ -124,6 +136,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 console.log('Auth state changed:', event);
 
+                if (event === 'PASSWORD_RECOVERY') {
+                    setPasswordRecovery(true);
+                    setPasswordRecoveryError(null);
+                }
+
                 setSession(session);
                 setUser(session?.user ?? null);
 
@@ -137,11 +154,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         );
 
+        Linking.getInitialURL().then(url => {
+            if (url && mounted) {
+                handleAuthUrl(url);
+            }
+        });
+
+        const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+            if (mounted) {
+                handleAuthUrl(url);
+            }
+        });
+
         return () => {
             mounted = false;
             subscription.unsubscribe();
+            linkingSubscription.remove();
         };
-    }, []);
+    }, [checkUserRole, handleAuthUrl]);
 
     const signIn = async (email: string, password: string) => {
         try {
@@ -168,40 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             setLoading(true);
 
-            // Remove emailRedirectTo for React Native to avoid origin issues
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
-                options: {
-                    data: {
-                        role: 'user' // Default role for new signups
-                    }
-                    // Removed emailRedirectTo to fix the origin error
-                }
             });
-
-            if (data?.user && !error) {
-                // Create a record in user_roles table for the new user
-                try {
-                    const { error: roleError } = await supabase
-                        .from('user_roles')
-                        .insert([
-                            {
-                                user_id: data.user.id,
-                                role: 'user',
-                                created_at: new Date().toISOString()
-                            }
-                        ]);
-
-                    if (roleError) {
-                        console.error('Error creating user role:', roleError);
-                    } else {
-                        await checkUserRole(data.user);
-                    }
-                } catch (insertError) {
-                    console.error('Error creating user role:', insertError);
-                }
-            }
 
             return { error };
         } catch (error: any) {
@@ -209,6 +209,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { error };
         } finally {
             setLoading(false);
+        }
+    };
+
+    const requestPasswordReset = async (email: string) => {
+        try {
+            const redirectTo = Platform.OS === 'web'
+                ? Linking.createURL('/update-password')
+                : 'herquietplace://update-password';
+
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo,
+            });
+
+            return { error };
+        } catch (error: any) {
+            console.error('Password reset request error:', error);
+            return { error };
+        }
+    };
+
+    const updatePassword = async (password: string) => {
+        try {
+            const { error } = await supabase.auth.updateUser({ password });
+            if (error) return { error };
+
+            const { error: signOutError } = await supabase.auth.signOut();
+            if (signOutError) return { error: signOutError };
+
+            setPasswordRecovery(false);
+            setPasswordRecoveryError(null);
+            return { error: null };
+        } catch (error: any) {
+            console.error('Password update error:', error);
+            return { error };
+        }
+    };
+
+    const refreshSession = async () => {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) throw error;
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+            await checkUserRole(data.session.user);
+        } else {
+            setUserRole(null);
         }
     };
 
@@ -236,9 +282,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signIn,
         signUp,
+        requestPasswordReset,
+        updatePassword,
         signOut,
+        refreshSession,
         userRole,
         isAuthenticated,
+        passwordRecovery,
+        passwordRecoveryError,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

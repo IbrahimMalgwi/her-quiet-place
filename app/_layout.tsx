@@ -4,13 +4,14 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { View, ActivityIndicator } from 'react-native';
-import { useTheme } from '../constants/theme';
+import { ThemeProvider, useTheme } from '../constants/theme';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
-    const { user, loading, userRole } = useAuth();
+    const { user, loading, userRole, passwordRecovery } = useAuth();
     const theme = useTheme();
 
     useEffect(() => {
@@ -41,7 +42,7 @@ function RootLayoutContent() {
                 animation: 'fade',
             }}
         >
-            {!user ? (
+            {!user || passwordRecovery ? (
                 // User is not authenticated - show auth flow
                 <Stack.Screen
                     name="(auth)"
@@ -70,8 +71,12 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <RootLayoutContent />
-        </AuthProvider>
+        <ThemeProvider>
+            <ErrorBoundary>
+                <AuthProvider>
+                    <RootLayoutContent />
+                </AuthProvider>
+            </ErrorBoundary>
+        </ThemeProvider>
     );
 }
