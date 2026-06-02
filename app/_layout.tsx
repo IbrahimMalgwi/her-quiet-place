@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { View, ActivityIndicator } from 'react-native';
 import { ThemeProvider, useTheme } from '../constants/theme';
 import ErrorBoundary from '../components/ErrorBoundary';
+import InactivitySessionManager from '../components/InactivitySessionManager';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -74,7 +75,9 @@ export default function RootLayout() {
         <ThemeProvider>
             <ErrorBoundary>
                 <AuthProvider>
-                    <RootLayoutContent />
+                    <InactivitySessionManager>
+                        <RootLayoutContent />
+                    </InactivitySessionManager>
                 </AuthProvider>
             </ErrorBoundary>
         </ThemeProvider>
