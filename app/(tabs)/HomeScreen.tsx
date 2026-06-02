@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
+import { streakService, UserStreak } from "../../services/streakService";
 
 interface DailyItem {
     id: string;
@@ -26,12 +27,6 @@ interface DailyItem {
     type: 'quote' | 'verse' | 'prayer';
     is_favorited?: boolean;
     favorite_id?: string;
-}
-
-interface UserStreak {
-    current_streak: number;
-    longest_streak: number;
-    total_visits: number;
 }
 
 interface DailyAffirmation {
@@ -116,7 +111,7 @@ export default function HomeScreen() {
             await Promise.all([
                 fetchDailyItems(),
                 fetchTodaysAffirmation(),
-                updateUserStreak()
+                fetchUserStreak()
             ]);
 
             console.log('All data fetched successfully');
@@ -309,28 +304,19 @@ export default function HomeScreen() {
         type: 'prayer'
     });
 
-    const updateUserStreak = async () => {
+    const fetchUserStreak = async () => {
         if (!user) {
-            console.log('No user, skipping streak update');
+            console.log('No user, skipping streak fetch');
             return;
         }
 
         try {
-            console.log('Updating user streak for user:', user.id);
-            const { data, error } = await supabase
-                .rpc('update_user_streak');
+            console.log('Fetching user streak for user:', user.id);
+            const streakData = await streakService.recordLoginDay();
 
-            if (error) {
-                console.error('Error updating streak:', error);
-                throw error;
-            }
-
-            console.log('Streak update response:', data);
-
-            if (data && data.length > 0) {
-                const streakData = data[0];
+            if (streakData) {
                 setUserStreak(streakData);
-                console.log('Streak updated:', streakData);
+                console.log('Streak loaded:', streakData);
 
                 if (streakData.current_streak > 0) {
                     if (streakData.current_streak % 7 === 0 || streakData.current_streak === 1) {
@@ -350,7 +336,7 @@ export default function HomeScreen() {
                 }
             }
         } catch (error) {
-            console.error('Error updating streak:', error);
+            console.error('Error fetching streak:', error);
         }
     };
 

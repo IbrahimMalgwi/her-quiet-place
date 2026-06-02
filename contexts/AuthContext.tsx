@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { getQueryParams } from 'expo-auth-session/build/QueryParams';
 import { Platform } from 'react-native';
+import { streakService } from '../services/streakService';
 
 // Add this for OAuth to work properly in Expo
 WebBrowser.maybeCompleteAuthSession();
@@ -54,6 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error checking user role:', error);
             setUserRole('user');
+        }
+    }, []);
+
+    const recordLoginDay = useCallback(async () => {
+        try {
+            await streakService.recordLoginDay();
+        } catch (error) {
+            console.error('Error recording login streak:', error);
         }
     }, []);
 
@@ -113,7 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(session?.user ?? null);
 
                 if (session?.user) {
-                    await checkUserRole(session.user);
+                    await Promise.all([
+                        checkUserRole(session.user),
+                        recordLoginDay(),
+                    ]);
                 } else {
                     setUserRole(null);
                 }
@@ -146,6 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (session?.user) {
                     await checkUserRole(session.user);
+                    if (event === 'SIGNED_IN') {
+                        await recordLoginDay();
+                    }
                 } else {
                     setUserRole(null);
                 }
@@ -171,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             subscription.unsubscribe();
             linkingSubscription.remove();
         };
-    }, [checkUserRole, handleAuthUrl]);
+    }, [checkUserRole, handleAuthUrl, recordLoginDay]);
 
     const signIn = async (email: string, password: string) => {
         try {
@@ -182,7 +197,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (data?.user && !error) {
-                await checkUserRole(data.user);
+                await Promise.all([
+                    checkUserRole(data.user),
+                    recordLoginDay(),
+                ]);
             }
 
             return { error };
