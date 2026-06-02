@@ -72,7 +72,13 @@ export default function AdminLayout() {
             <Stack.Screen
                 name="ManageDailyStrength"
                 options={{
-                    title: 'Daily Strength',
+                    title: 'Daily Content',
+                }}
+            />
+            <Stack.Screen
+                name="AdminAffirmationsManager"
+                options={{
+                    title: 'Daily Affirmations',
                 }}
             />
             <Stack.Screen

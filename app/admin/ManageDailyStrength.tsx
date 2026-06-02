@@ -16,7 +16,13 @@ import {
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { adminDailyStrengthService, DailyStrength } from '../../services/adminDailyStrengthService';
+import {
+    adminDailyStrengthService,
+    DailyStrength,
+    DailyStrengthType
+} from '../../services/adminDailyStrengthService';
+
+const DAILY_CONTENT_TYPES: DailyStrengthType[] = ['quote', 'verse', 'prayer'];
 
 // Helper functions for proper typing
 const createLabelStyle = (theme: any): TextStyle => ({
@@ -54,7 +60,14 @@ export default function ManageDailyStrength() {
     const [editingStrength, setEditingStrength] = useState<DailyStrength | null>(null);
 
     // Form state - updated to match your database schema
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        title: string;
+        message: string;
+        author: string;
+        type: DailyStrengthType;
+        is_active: boolean;
+        approved: boolean;
+    }>({
         title: '',
         message: '', // Changed from content to message
         author: '',
@@ -77,6 +90,7 @@ export default function ManageDailyStrength() {
             Alert.alert('Error', 'Failed to load daily strengths');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -97,8 +111,9 @@ export default function ManageDailyStrength() {
         setEditingStrength(null);
     };
 
-    const openAddModal = () => {
+    const openAddModal = (type: DailyStrengthType = 'quote') => {
         resetForm();
+        setFormData(prev => ({ ...prev, type }));
         setModalVisible(true);
     };
 
@@ -107,7 +122,7 @@ export default function ManageDailyStrength() {
             title: strength.title || '',
             message: strength.message,
             author: strength.author || '',
-            type: strength.type || 'quote',
+            type: strength.type,
             is_active: strength.is_active,
             approved: strength.approved,
         });
@@ -230,7 +245,7 @@ export default function ManageDailyStrength() {
     const getCategoryColor = (type: string) => {
         const colors: { [key: string]: string } = {
             inspiration: '#6366f1',
-            scripture: '#10b981',
+            verse: '#10b981',
             prayer: '#ef4444',
             reflection: '#f59e0b',
             encouragement: '#8b5cf6',
@@ -420,19 +435,19 @@ export default function ManageDailyStrength() {
                         fontWeight: 'bold' as 'bold',
                         color: theme.colors.text,
                     }}>
-                        Daily Strength ({dailyStrengths.length})
+                        Daily Content ({dailyStrengths.length})
                     </Text>
                     <Text style={{
                         fontSize: 12,
                         color: theme.colors.textSecondary,
                         marginTop: 2,
                     }}>
-                        Inspire your community daily
+                        Add quotes, verses, and prayers for the home screen
                     </Text>
                 </View>
 
                 <TouchableOpacity
-                    onPress={openAddModal}
+                    onPress={() => openAddModal()}
                     style={[
                         theme.button,
                         {
@@ -444,12 +459,45 @@ export default function ManageDailyStrength() {
                 >
                     <Ionicons name="add" size={16} color={theme.colors.textInverse} />
                     <Text style={[theme.buttonText, { marginLeft: theme.Spacing.sm }]}>
-                        New Post
+                        New Content
                     </Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Daily Strengths List */}
+            <View style={{
+                flexDirection: 'row',
+                gap: theme.Spacing.sm,
+                paddingHorizontal: theme.Spacing.md,
+                paddingTop: theme.Spacing.md,
+            }}>
+                {DAILY_CONTENT_TYPES.map(type => (
+                    <TouchableOpacity
+                        key={type}
+                        onPress={() => openAddModal(type)}
+                        style={{
+                            flex: 1,
+                            alignItems: 'center',
+                            paddingVertical: theme.Spacing.sm,
+                            borderRadius: theme.BorderRadius.md,
+                            backgroundColor: getCategoryColor(type) + '15',
+                            borderWidth: 1,
+                            borderColor: getCategoryColor(type) + '40',
+                        }}
+                    >
+                        <Ionicons name="add" size={16} color={getCategoryColor(type)} />
+                        <Text style={{
+                            color: getCategoryColor(type),
+                            fontSize: 12,
+                            fontWeight: '600',
+                            textTransform: 'capitalize',
+                        }}>
+                            {type}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {/* Daily Content List */}
             <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ padding: theme.Spacing.md }}
@@ -474,7 +522,7 @@ export default function ManageDailyStrength() {
                             marginTop: theme.Spacing.lg,
                             textAlign: 'center' as 'center',
                         }}>
-                            No daily strengths yet
+                            No daily content yet
                         </Text>
                         <Text style={{
                             fontSize: 14,
@@ -511,7 +559,7 @@ export default function ManageDailyStrength() {
                             fontWeight: 'bold' as 'bold',
                             color: theme.colors.text,
                         }}>
-                            {editingStrength ? 'Edit Daily Strength' : 'Create Daily Strength'}
+                            {editingStrength ? 'Edit Daily Content' : 'Create Daily Content'}
                         </Text>
 
                         <TouchableOpacity
@@ -550,7 +598,7 @@ export default function ManageDailyStrength() {
 
                             {/* Author */}
                             <View>
-                                <Text style={createLabelStyle(theme)}>Author (Optional)</Text>
+                                <Text style={createLabelStyle(theme)}>Author or Reference (Optional)</Text>
                                 <TextInput
                                     style={theme.input}
                                     value={formData.author}
@@ -567,7 +615,7 @@ export default function ManageDailyStrength() {
                                         flexDirection: 'row' as 'row',
                                         gap: theme.Spacing.sm
                                     }}>
-                                        {['quote', 'scripture', 'prayer', 'reflection', 'encouragement'].map(type => (
+                                        {DAILY_CONTENT_TYPES.map(type => (
                                             <TouchableOpacity
                                                 key={type}
                                                 onPress={() => setFormData(prev => ({ ...prev, type }))}

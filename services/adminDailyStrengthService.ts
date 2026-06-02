@@ -1,6 +1,8 @@
 // services/adminDailyStrengthService.ts
 import { supabase } from '../lib/supabase';
 
+export type DailyStrengthType = 'quote' | 'verse' | 'prayer';
+
 export interface DailyStrength {
     id: string;
     title?: string;
@@ -9,7 +11,7 @@ export interface DailyStrength {
     created_by?: string;
     approved: boolean;
     author?: string;
-    type: string;
+    type: DailyStrengthType;
     is_active: boolean;
 }
 

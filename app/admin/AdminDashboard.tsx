@@ -247,6 +247,13 @@ export default function AdminDashboard() {
                     color="#f59e0b"
                     onPress={() => router.push('/admin/ReviewPrayers')}
                 />
+                <StatCard
+                    title="Daily Content"
+                    value={stats.dailyStrengths}
+                    icon="calendar"
+                    color="#6366f1"
+                    onPress={() => router.push('/admin/ManageDailyStrength')}
+                />
             </View>
 
             {/* Quick Actions */}
@@ -268,11 +275,19 @@ export default function AdminDashboard() {
             />
 
             <QuickAction
-                title="Post Daily Strength"
-                description="Create new daily inspiration"
+                title="Manage Daily Content"
+                description="Add daily quotes, verses, and prayers"
                 icon="calendar"
                 route="/admin/ManageDailyStrength"
                 color="#6366f1"
+            />
+
+            <QuickAction
+                title="Manage Daily Affirmations"
+                description="Add and publish daily affirmations"
+                icon="sparkles"
+                route="/admin/AdminAffirmationsManager"
+                color="#ec4899"
             />
 
             <QuickAction

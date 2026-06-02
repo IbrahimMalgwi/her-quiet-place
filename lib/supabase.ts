@@ -1,32 +1,26 @@
-// lib/supabase.ts
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-
-// Secure storage adapter for Supabase
-const ExpoSecureStoreAdapter = {
-    getItem: (key: string) => {
-        return SecureStore.getItemAsync(key);
-    },
-    setItem: (key: string, value: string) => {
-        return SecureStore.setItemAsync(key, value);
-    },
-    removeItem: (key: string) => {
-        return SecureStore.deleteItemAsync(key);
-    },
-};
 
 const WebStorageAdapter = {
     getItem: (key: string) => {
-        return Promise.resolve(typeof window === 'undefined' ? null : window.localStorage.getItem(key));
+        return Promise.resolve(
+            typeof window === 'undefined'
+                ? null
+                : window.localStorage.getItem(key)
+        );
     },
     setItem: (key: string, value: string) => {
-        if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(key, value);
+        }
         return Promise.resolve();
     },
     removeItem: (key: string) => {
-        if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(key);
+        }
         return Promise.resolve();
     },
 };
@@ -40,12 +34,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
     );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        storage: Platform.OS === 'web' ? WebStorageAdapter : ExpoSecureStoreAdapter,
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-        flowType: 'pkce',
-    },
-});
+export const supabase = createClient(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+        auth: {
+            storage:
+                Platform.OS === 'web'
+                    ? WebStorageAdapter
+                    : AsyncStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+            flowType: 'pkce',
+        },
+    }
+);

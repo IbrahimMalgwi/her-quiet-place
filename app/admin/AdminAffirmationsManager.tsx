@@ -32,23 +32,28 @@ export default function AdminAffirmationsManager() {
 
         if (error) {
             console.error('Error fetching affirmations:', error);
+            Alert.alert('Error', 'Failed to load affirmations');
         } else {
             setAffirmations(data || []);
         }
     };
 
     const addAffirmation = async () => {
-        if (!newAffirmation.trim()) return;
+        if (!newAffirmation.trim()) {
+            Alert.alert('Missing affirmation', 'Enter an affirmation before adding it.');
+            return;
+        }
 
         setLoading(true);
         const { error } = await supabase
             .from('daily_affirmations')
             .insert([{
                 affirmation_text: newAffirmation.trim(),
-                category: category
+                category: category.trim() || 'general'
             }]);
 
         if (error) {
+            console.error('Error adding affirmation:', error);
             Alert.alert('Error', 'Failed to add affirmation');
         } else {
             setNewAffirmation('');
@@ -65,6 +70,7 @@ export default function AdminAffirmationsManager() {
             .eq('id', id);
 
         if (error) {
+            console.error('Error updating affirmation:', error);
             Alert.alert('Error', 'Failed to update affirmation');
         } else {
             fetchAffirmations();
@@ -73,7 +79,7 @@ export default function AdminAffirmationsManager() {
 
     return (
         <View style={theme.container}>
-            <Text style={theme.title}>Manage Affirmations</Text>
+            <Text style={theme.title}>Daily Affirmations</Text>
 
             {/* Add New Affirmation */}
             <View style={theme.card}>
