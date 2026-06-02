@@ -6,6 +6,7 @@ import {
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -69,7 +70,18 @@ export default function LoginScreen() {
             const { error } = await signIn(email, password);
 
             if (error) {
-                setError(error.message);
+                const isInvalidCredentials =
+                    error.code === 'invalid_credentials'
+                    || error.message?.toLowerCase().includes('invalid login credentials');
+                const message = isInvalidCredentials
+                    ? 'Incorrect email or password. Please try again.'
+                    : error.message;
+
+                setError(message);
+
+                if (isInvalidCredentials) {
+                    Alert.alert('Unable to Sign In', message);
+                }
             }
             // Auth state change will handle redirect automatically
         } catch (err) {
