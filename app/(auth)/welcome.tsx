@@ -1,325 +1,236 @@
-// app/(auth)/welcome.tsx
 import React from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
     ScrollView,
     StatusBar,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useTheme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../../constants/theme';
+
+const features = [
+    {
+        icon: 'sunny-outline',
+        title: 'Daily comfort',
+        description: 'Quotes, verses, prayers, and affirmations',
+        color: '#f59e0b',
+    },
+    {
+        icon: 'book-outline',
+        title: 'Private journal',
+        description: 'A quiet space for honest reflection',
+        color: '#8b5cf6',
+    },
+    {
+        icon: 'heart-outline',
+        title: 'Prayer room',
+        description: 'Share requests and support others',
+        color: '#ef4444',
+    },
+    {
+        icon: 'musical-notes-outline',
+        title: 'Peaceful audio',
+        description: 'Listen when you need a gentle pause',
+        color: '#10b981',
+    },
+] as const;
 
 export default function WelcomeScreen() {
     const theme = useTheme();
     const router = useRouter();
 
-    const features = [
-        {
-            icon: 'heart-outline',
-            title: 'Daily Strength',
-            description: 'Receive daily quotes, verses, and prayers to uplift your spirit'
-        },
-        {
-            icon: 'book-outline',
-            title: 'Personal Journal',
-            description: 'Write your thoughts and reflections in a private, secure space'
-        },
-        {
-            icon: 'people-outline',
-            title: 'Prayer Community',
-            description: 'Share prayer requests and support others in their journey'
-        },
-        {
-            icon: 'musical-notes-outline',
-            title: 'Audio Comforts',
-            description: 'Listen to guided devotionals and peaceful audio content'
-        }
-    ];
-
-    const purposePoints = [
-        'Reflect and recharge emotionally',
-        'Hear gentle words that lift your spirits',
-        'Feel less alone during difficult seasons'
-    ];
-
     return (
-        <View style={[theme.screen, { paddingHorizontal: 0 }]}>
+        <View style={theme.screen}>
             <StatusBar barStyle={theme.colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-            {/* Header */}
             <View style={{
-                paddingHorizontal: theme.Spacing.xl,
-                paddingTop: theme.Spacing.xxl,
-                paddingBottom: theme.Spacing.lg,
-                alignItems: 'center',
-                backgroundColor: theme.colors.accentPrimary + '08',
-            }}>
-                <View style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    backgroundColor: theme.colors.accentPrimary + '20',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginBottom: theme.Spacing.md,
-                    borderWidth: 2,
-                    borderColor: theme.colors.accentPrimary + '30',
-                }}>
-                    <Ionicons name="leaf-outline" size={36} color={theme.colors.accentPrimary} />
-                </View>
-
-                <Text style={{
-                    fontSize: 32,
-                    fontWeight: 'bold',
-                    color: theme.colors.text,
-                    textAlign: 'center',
-                    marginBottom: theme.Spacing.xs,
-                    lineHeight: 38,
-                }}>
-                    Her Quiet Place
-                </Text>
-
-                <Text style={{
-                    fontSize: 16,
-                    color: theme.colors.accentPrimary,
-                    textAlign: 'center',
-                    fontStyle: 'italic',
-                    marginBottom: theme.Spacing.md,
-                    lineHeight: 22,
-                }}>
-                    ...where wounded hearts find rest
-                </Text>
-            </View>
-
-            {/* Vision Statement - Moved up with reduced margin */}
+                position: 'absolute',
+                top: -90,
+                right: -70,
+                width: 230,
+                height: 230,
+                borderRadius: 115,
+                backgroundColor: theme.colors.accentSecondary + '70',
+            }} />
             <View style={{
-                paddingHorizontal: theme.Spacing.lg,
-                paddingVertical: theme.Spacing.md,
-                backgroundColor: theme.colors.backgroundCard,
-                marginHorizontal: theme.Spacing.lg,
-                marginTop: theme.Spacing.lg, // Reduced from xl to lg
-                borderRadius: theme.BorderRadius.lg,
-                borderLeftWidth: 4,
-                borderLeftColor: theme.colors.accentPrimary,
-            }}>
-                <Text style={{
-                    fontSize: 15,
-                    fontWeight: '600',
-                    color: theme.colors.text,
-                    marginBottom: theme.Spacing.sm,
-                    textAlign: 'center',
-                }}>
-                    A sanctuary for women navigating emotional overwhelm
-                </Text>
-                <Text style={{
-                    fontSize: 13,
-                    color: theme.colors.textSecondary,
-                    lineHeight: 18,
-                    textAlign: 'center',
-                }}>
-                    Whether you&apos;re single, married, divorced, or silently struggling — this is your soft place to land, offering hope, healing, and strength one quiet moment at a time.
-                </Text>
-            </View>
+                position: 'absolute',
+                top: 190,
+                left: -80,
+                width: 170,
+                height: 170,
+                borderRadius: 85,
+                backgroundColor: theme.colors.accentPrimary + '20',
+            }} />
 
-            {/* Features List */}
             <ScrollView
-                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{
-                    paddingHorizontal: theme.Spacing.xl,
-                    paddingVertical: theme.Spacing.lg,
+                    flexGrow: 1,
+                    paddingHorizontal: theme.Spacing.lg,
+                    paddingTop: theme.Spacing.xxl,
+                    paddingBottom: theme.Spacing.lg,
                 }}
             >
-                <Text style={{
-                    fontSize: 18,
-                    fontWeight: 'bold',
-                    color: theme.colors.text,
-                    textAlign: 'center',
-                    marginBottom: theme.Spacing.lg,
-                }}>
-                    What Awaits You
-                </Text>
-
-                {features.map((feature, index) => (
-                    <View
-                        key={feature.title}
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'flex-start',
-                            marginBottom: theme.Spacing.md, // Reduced from lg to md
-                            backgroundColor: theme.colors.backgroundCard,
-                            padding: theme.Spacing.md, // Reduced from lg to md
-                            borderRadius: theme.BorderRadius.lg,
-                            borderLeftWidth: 4,
-                            borderLeftColor: theme.colors.accentPrimary,
-                            shadowColor: theme.colors.black,
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 8,
-                            elevation: 3,
-                        }}
-                    >
-                        <View style={{
-                            backgroundColor: theme.colors.accentPrimary + '15',
-                            padding: theme.Spacing.sm, // Reduced from md to sm
-                            borderRadius: theme.BorderRadius.round,
-                            marginRight: theme.Spacing.md,
-                            marginTop: 2,
-                        }}>
-                            <Ionicons
-                                name={feature.icon as any}
-                                size={20} // Reduced from 24 to 20
-                                color={theme.colors.accentPrimary}
-                            />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                            <Text style={{
-                                fontSize: 16, // Reduced from 18 to 16
-                                fontWeight: '600',
-                                color: theme.colors.text,
-                                marginBottom: theme.Spacing.xs,
-                            }}>
-                                {feature.title}
-                            </Text>
-                            <Text style={{
-                                fontSize: 13, // Reduced from 14 to 13
-                                color: theme.colors.textSecondary,
-                                lineHeight: 18, // Reduced from 20 to 18
-                            }}>
-                                {feature.description}
-                            </Text>
-                        </View>
-                    </View>
-                ))}
-
-                {/* Core Purpose Section */}
-                <View style={{
-                    backgroundColor: theme.colors.accentPrimary + '08',
-                    padding: theme.Spacing.lg, // Reduced from xl to lg
-                    borderRadius: theme.BorderRadius.lg,
-                    marginTop: theme.Spacing.md,
-                    borderWidth: 1,
-                    borderColor: theme.colors.accentPrimary + '20',
-                }}>
-                    <Text style={{
-                        fontSize: 16, // Reduced from 18 to 16
-                        fontWeight: 'bold',
-                        color: theme.colors.text,
-                        textAlign: 'center',
-                        marginBottom: theme.Spacing.md, // Reduced from lg to md
+                <View style={{ flex: 1 }}>
+                    <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        alignSelf: 'flex-start',
+                        backgroundColor: theme.colors.backgroundCard + 'D9',
+                        borderRadius: theme.BorderRadius.round,
+                        paddingHorizontal: theme.Spacing.md,
+                        paddingVertical: theme.Spacing.sm,
+                        borderWidth: 1,
+                        borderColor: theme.colors.accentPrimary + '35',
                     }}>
-                        Your Safe Space to:
-                    </Text>
-
-                    {purposePoints.map((point, index) => (
-                        <View key={index} style={{
-                            flexDirection: 'row',
-                            alignItems: 'flex-start',
-                            marginBottom: theme.Spacing.sm, // Reduced from md to sm
+                        <Ionicons name="leaf-outline" size={17} color={theme.colors.accentPrimary} />
+                        <Text style={{
+                            color: theme.colors.accentPrimary,
+                            fontSize: 13,
+                            fontWeight: '700',
+                            marginLeft: theme.Spacing.sm,
+                            letterSpacing: 0.4,
                         }}>
-                            <Ionicons
-                                name="checkmark-circle"
-                                size={18} // Reduced from 20 to 18
-                                color={theme.colors.accentPrimary}
-                                style={{ marginRight: theme.Spacing.sm, marginTop: 1 }}
-                            />
-                            <Text style={{
-                                fontSize: 13, // Reduced from 14 to 13
-                                color: theme.colors.text,
-                                lineHeight: 18, // Reduced from 20 to 18
-                                flex: 1,
-                            }}>
-                                {point}
-                            </Text>
-                        </View>
-                    ))}
+                            HER QUIET PLACE
+                        </Text>
+                    </View>
+
+                    <View style={{ marginTop: theme.Spacing.xxl }}>
+                        <Text style={{
+                            color: theme.colors.text,
+                            fontSize: 42,
+                            fontWeight: '800',
+                            lineHeight: 48,
+                            letterSpacing: -1,
+                        }}>
+                            A softer place{'\n'}to land.
+                        </Text>
+                        <Text style={{
+                            color: theme.colors.textSecondary,
+                            fontSize: 16,
+                            lineHeight: 24,
+                            marginTop: theme.Spacing.md,
+                            maxWidth: 340,
+                        }}>
+                            Take a quiet moment for comfort, reflection, prayer, and the strength to begin again.
+                        </Text>
+                    </View>
+
+                    <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: theme.Spacing.lg,
+                    }}>
+                        <View style={{
+                            width: 38,
+                            height: 2,
+                            backgroundColor: theme.colors.accentPrimary,
+                            marginRight: theme.Spacing.sm,
+                        }} />
+                        <Text style={{
+                            color: theme.colors.accentPrimary,
+                            fontSize: 13,
+                            fontStyle: 'italic',
+                            fontWeight: '600',
+                        }}>
+                            where wounded hearts find rest
+                        </Text>
+                    </View>
+
+                    <View style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: theme.Spacing.sm,
+                        marginTop: theme.Spacing.xxl,
+                    }}>
+                        {features.map(feature => (
+                            <View
+                                key={feature.title}
+                                style={{
+                                    width: '48%',
+                                    minHeight: 130,
+                                    backgroundColor: theme.colors.backgroundCard + 'E6',
+                                    borderRadius: theme.BorderRadius.lg,
+                                    padding: theme.Spacing.md,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.border + '80',
+                                }}
+                            >
+                                <View style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 18,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: feature.color + '18',
+                                }}>
+                                    <Ionicons name={feature.icon} size={19} color={feature.color} />
+                                </View>
+                                <Text style={{
+                                    color: theme.colors.text,
+                                    fontSize: 14,
+                                    fontWeight: '700',
+                                    marginTop: theme.Spacing.sm,
+                                }}>
+                                    {feature.title}
+                                </Text>
+                                <Text style={{
+                                    color: theme.colors.textSecondary,
+                                    fontSize: 12,
+                                    lineHeight: 17,
+                                    marginTop: theme.Spacing.xs,
+                                }}>
+                                    {feature.description}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
                 </View>
 
-                {/* Target Audience Note */}
                 <View style={{
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    padding: theme.Spacing.md, // Reduced from lg to md
-                    borderRadius: theme.BorderRadius.lg,
-                    marginTop: theme.Spacing.md, // Reduced from lg to md
-                    borderLeftWidth: 3,
-                    borderLeftColor: theme.colors.accentSecondary,
+                    marginTop: theme.Spacing.xl,
+                    backgroundColor: theme.colors.backgroundCard + 'E6',
+                    borderRadius: theme.BorderRadius.xl,
+                    padding: theme.Spacing.md,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border + '80',
                 }}>
+                    <TouchableOpacity
+                        style={[theme.button, { paddingVertical: theme.Spacing.md }]}
+                        activeOpacity={0.85}
+                        onPress={() => router.push('/(auth)/signup')}
+                    >
+                        <Text style={theme.buttonText}>Create your quiet space</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={{
+                            alignItems: 'center',
+                            paddingVertical: theme.Spacing.md,
+                            marginTop: theme.Spacing.xs,
+                        }}
+                        onPress={() => router.push('/(auth)/login')}
+                    >
+                        <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                            Already have an account?{' '}
+                            <Text style={{ color: theme.colors.accentPrimary, fontWeight: '700' }}>
+                                Sign in
+                            </Text>
+                        </Text>
+                    </TouchableOpacity>
+
                     <Text style={{
-                        fontSize: 11, // Reduced from 12 to 11
                         color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        lineHeight: 14,
                         textAlign: 'center',
-                        lineHeight: 16, // Reduced from 18 to 16
-                        fontStyle: 'italic',
                     }}>
-                        Designed for women (ages 20+) seeking emotional comfort and spiritual strength.
-                        Our content thoughtfully blends faith-inspired guidance with universal emotional support.
+                        By continuing, you agree to our Terms of Service and Privacy Policy.
                     </Text>
                 </View>
             </ScrollView>
-
-            {/* Action Buttons - Now side by side */}
-            <View style={{
-                paddingHorizontal: theme.Spacing.lg, // Reduced from xl to lg
-                paddingVertical: theme.Spacing.md, // Reduced from lg to md
-                borderTopWidth: 1,
-                borderTopColor: theme.colors.border + '30',
-                gap: theme.Spacing.md,
-                backgroundColor: theme.colors.background,
-            }}>
-                <View style={{
-                    flexDirection: 'row',
-                    gap: theme.Spacing.md,
-                }}>
-                    <TouchableOpacity
-                        style={[theme.button, {
-                            flex: 1,
-                            backgroundColor: theme.colors.accentPrimary,
-                            paddingVertical: theme.Spacing.md, // Reduced from lg to md
-                        }]}
-                        onPress={() => router.push('/(auth)/login' as any)}
-                    >
-                        <Text style={[theme.buttonText, {
-                            color: theme.colors.textInverse,
-                            fontSize: 14, // Reduced from 16 to 14
-                            fontWeight: '600',
-                        }]}>
-                            Sign In
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[theme.button, {
-                            flex: 1,
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderColor: theme.colors.accentPrimary,
-                            paddingVertical: theme.Spacing.md, // Reduced from lg to md
-                        }]}
-                        onPress={() => router.push('/(auth)/signup' as any)}
-                    >
-                        <Text style={[theme.buttonText, {
-                            color: theme.colors.accentPrimary,
-                            fontSize: 14, // Reduced from 16 to 14
-                            fontWeight: '600',
-                        }]}>
-                            Create Account
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={{
-                    fontSize: 10, // Reduced from 11 to 10
-                    color: theme.colors.textSecondary,
-                    textAlign: 'center',
-                    marginTop: theme.Spacing.xs, // Reduced from sm to xs
-                    lineHeight: 14, // Reduced from 16 to 14
-                }}>
-                    By continuing, you agree to our Terms of Service and Privacy Policy
-                </Text>
-            </View>
         </View>
     );
 }

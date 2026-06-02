@@ -6,10 +6,10 @@ import {
     ActivityIndicator,
     ScrollView,
     TouchableOpacity,
-    RefreshControl,
     Share,
     Alert,
     Animated,
+    Modal,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -61,9 +61,9 @@ export default function HomeScreen() {
         prayer: null
     });
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [userStreak, setUserStreak] = useState<UserStreak | null>(null);
     const [todaysAffirmation, setTodaysAffirmation] = useState<DailyAffirmation | null>(null);
+    const [expandedContent, setExpandedContent] = useState<'quote' | 'verse' | 'prayer' | 'affirmation' | null>(null);
 
     // Animation refs
     const streakPulse = useRef(new Animated.Value(1)).current;
@@ -342,9 +342,7 @@ export default function HomeScreen() {
 
     const handleRefresh = () => {
         console.log('Manual refresh triggered');
-        setRefreshing(true);
-        fetchAllData().finally(() => {
-            setRefreshing(false);
+        void fetchAllData().finally(() => {
             console.log('Manual refresh completed');
         });
     };
@@ -503,159 +501,193 @@ export default function HomeScreen() {
         console.log(`Rendering ${type}:`, item);
 
         return (
-            <View
+            <TouchableOpacity
                 key={type}
+                activeOpacity={0.8}
+                onPress={() => setExpandedContent(type)}
                 style={{
-                    marginBottom: theme.Spacing.lg,
+                    flex: 1,
+                    backgroundColor: getTypeBackground(type),
+                    borderRadius: theme.BorderRadius.lg,
+                    borderWidth: 1,
+                    borderColor: getTypeColor(type) + '40',
+                    padding: theme.Spacing.md,
                 }}
             >
-                <View style={[
-                    theme.card,
-                    {
-                        backgroundColor: getTypeBackground(type),
-                        borderLeftWidth: 6,
-                        borderLeftColor: getTypeColor(type),
-                        padding: theme.Spacing.xl,
-                    }
-                ]}>
-                    {/* Type Header */}
+                <View style={{
+                    backgroundColor: getTypeColor(type) + '25',
+                    padding: theme.Spacing.sm,
+                    borderRadius: theme.BorderRadius.round,
+                    alignSelf: 'flex-start',
+                }}>
+                    <Ionicons name={getTypeIcon(type)} size={18} color={getTypeColor(type)} />
+                </View>
+
+                <Text style={{
+                    color: getTypeColor(type),
+                    fontSize: 12,
+                    fontWeight: '700',
+                    marginTop: theme.Spacing.sm,
+                    textTransform: 'uppercase',
+                }}>
+                    {getTypeTitle(type)}
+                </Text>
+
+                <Text
+                    numberOfLines={5}
+                    style={{
+                        color: theme.colors.text,
+                        fontSize: 14,
+                        lineHeight: 19,
+                        marginTop: theme.Spacing.sm,
+                        flex: 1,
+                    }}
+                >
+                    {item.message}
+                </Text>
+
+                <Text style={{
+                    color: getTypeColor(type),
+                    fontSize: 11,
+                    fontWeight: '600',
+                    marginTop: theme.Spacing.sm,
+                }}>
+                    Tap to read more
+                </Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderExpandedContent = () => {
+        if (!expandedContent) return null;
+
+        const isAffirmation = expandedContent === 'affirmation';
+        const dailyType = isAffirmation ? null : expandedContent;
+        const item = dailyType ? dailyItems[dailyType] : null;
+
+        if (dailyType && !item) return null;
+
+        const color = isAffirmation ? theme.colors.accentPrimary : getTypeColor(expandedContent);
+        const title = isAffirmation ? 'Daily Affirmation' : getTypeTitle(expandedContent);
+
+        return (
+            <Modal
+                visible
+                animationType="slide"
+                transparent
+                onRequestClose={() => setExpandedContent(null)}
+            >
+                <View style={{
+                    flex: 1,
+                    justifyContent: 'flex-end',
+                    backgroundColor: theme.colors.overlay,
+                }}>
                     <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: theme.Spacing.lg,
+                        maxHeight: '82%',
+                        backgroundColor: theme.colors.backgroundModal,
+                        borderTopLeftRadius: theme.BorderRadius.xl,
+                        borderTopRightRadius: theme.BorderRadius.xl,
+                        padding: theme.Spacing.lg,
                     }}>
                         <View style={{
                             flexDirection: 'row',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
-                            gap: theme.Spacing.xs,
-                        }}>
-                            <View style={{
-                                backgroundColor: getTypeColor(type) + '30',
-                                padding: theme.Spacing.xs,
-                                borderRadius: theme.BorderRadius.round,
-                            }}>
-                                <Ionicons
-                                    name={getTypeIcon(type)}
-                                    size={16}
-                                    color={getTypeColor(type)}
-                                />
-                            </View>
-                            <Text style={{
-                                fontSize: 14,
-                                fontWeight: '700',
-                                color: getTypeColor(type),
-                                textTransform: 'uppercase',
-                                letterSpacing: 1,
-                            }}>
-                                {getTypeTitle(type)}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Title */}
-                    {item.title && (
-                        <Text style={{
-                            fontSize: 20,
-                            fontWeight: 'bold',
-                            color: theme.colors.text,
                             marginBottom: theme.Spacing.md,
-                            textAlign: 'center',
-                            lineHeight: 26,
                         }}>
-                            {item.title}
-                        </Text>
-                    )}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                                <Ionicons
+                                    name={isAffirmation ? getCategoryIcon(todaysAffirmation?.category || 'general') : getTypeIcon(expandedContent)}
+                                    size={22}
+                                    color={color}
+                                />
+                                <Text style={{ color, fontSize: 16, fontWeight: '700' }}>{title}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setExpandedContent(null)}>
+                                <Ionicons name="close" size={26} color={theme.colors.text} />
+                            </TouchableOpacity>
+                        </View>
 
-                    {/* Message */}
-                    <Text style={{
-                        fontSize: 16,
-                        color: theme.colors.text,
-                        textAlign: "center",
-                        marginBottom: theme.Spacing.md,
-                        lineHeight: 24,
-                        letterSpacing: 0.3,
-                    }}>
-                        {item.message}
-                    </Text>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {!isAffirmation && item?.title && (
+                                <Text style={{
+                                    color: theme.colors.text,
+                                    fontSize: 22,
+                                    fontWeight: '700',
+                                    marginBottom: theme.Spacing.md,
+                                }}>
+                                    {item.title}
+                                </Text>
+                            )}
 
-                    {/* Author */}
-                    {item.author && (
-                        <Text style={{
-                            fontSize: 14,
-                            color: theme.colors.textSecondary,
-                            textAlign: "center",
-                            marginBottom: theme.Spacing.lg,
-                            fontWeight: '600',
-                            fontStyle: 'italic',
-                        }}>
-                            — {item.author}
-                        </Text>
-                    )}
-
-                    {/* Action Buttons */}
-                    <View style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-around',
-                        paddingTop: theme.Spacing.md,
-                        borderTopWidth: 1,
-                        borderTopColor: theme.colors.border + '40',
-                    }}>
-                        <TouchableOpacity
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: theme.Spacing.sm,
-                                padding: theme.Spacing.sm,
-                                flex: 1,
-                                justifyContent: 'center',
-                            }}
-                            onPress={() => handleShare(item)}
-                        >
-                            <Ionicons name="share-outline" size={18} color={theme.colors.textSecondary} />
                             <Text style={{
-                                color: theme.colors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: '600',
+                                color: theme.colors.text,
+                                fontSize: 17,
+                                lineHeight: 27,
+                                fontStyle: isAffirmation ? 'italic' : 'normal',
                             }}>
-                                Share
+                                {isAffirmation ? todaysAffirmation?.affirmation_text : item?.message}
                             </Text>
-                        </TouchableOpacity>
 
-                        <View style={{
-                            width: 1,
-                            backgroundColor: theme.colors.border + '40',
-                            marginHorizontal: theme.Spacing.sm,
-                        }} />
+                            {!isAffirmation && item?.author && (
+                                <Text style={{
+                                    color: theme.colors.textSecondary,
+                                    fontSize: 14,
+                                    fontStyle: 'italic',
+                                    fontWeight: '600',
+                                    marginTop: theme.Spacing.md,
+                                }}>
+                                    - {item.author}
+                                </Text>
+                            )}
 
-                        <TouchableOpacity
-                            style={{
+                            <View style={{
                                 flexDirection: 'row',
-                                alignItems: 'center',
                                 gap: theme.Spacing.sm,
-                                padding: theme.Spacing.sm,
-                                flex: 1,
-                                justifyContent: 'center',
-                            }}
-                            onPress={() => toggleFavorite(item.id, type)}
-                            disabled={!isPersistedDailyItem(item)}
-                        >
-                            <Ionicons
-                                name={item.is_favorited ? "bookmark" : "bookmark-outline"}
-                                size={18}
-                                color={item.is_favorited ? theme.colors.accentPrimary : theme.colors.textSecondary}
-                            />
-                            <Text style={{
-                                color: item.is_favorited ? theme.colors.accentPrimary : theme.colors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: '600',
+                                marginTop: theme.Spacing.lg,
+                                paddingBottom: theme.Spacing.md,
                             }}>
-                                {!isPersistedDailyItem(item) ? "Unavailable" : item.is_favorited ? "Saved" : "Save"}
-                            </Text>
-                        </TouchableOpacity>
+                                {isAffirmation ? (
+                                    <TouchableOpacity
+                                        style={[theme.button, { flex: 1, flexDirection: 'row', gap: theme.Spacing.sm }]}
+                                        onPress={() => {
+                                            void refreshAffirmation();
+                                            setExpandedContent(null);
+                                        }}
+                                    >
+                                        <Ionicons name="refresh" size={18} color={theme.colors.textInverse} />
+                                        <Text style={theme.buttonText}>New Affirmation</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <>
+                                        <TouchableOpacity
+                                            style={[theme.buttonOutline, { flex: 1, flexDirection: 'row', gap: theme.Spacing.sm }]}
+                                            onPress={() => void handleShare(item!)}
+                                        >
+                                            <Ionicons name="share-outline" size={18} color={theme.colors.accentPrimary} />
+                                            <Text style={theme.buttonTextOutline}>Share</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[theme.button, { flex: 1, flexDirection: 'row', gap: theme.Spacing.sm }]}
+                                            onPress={() => void toggleFavorite(item!.id, dailyType!)}
+                                            disabled={!isPersistedDailyItem(item)}
+                                        >
+                                            <Ionicons
+                                                name={item!.is_favorited ? 'bookmark' : 'bookmark-outline'}
+                                                size={18}
+                                                color={theme.colors.textInverse}
+                                            />
+                                            <Text style={theme.buttonText}>
+                                                {!isPersistedDailyItem(item) ? 'Unavailable' : item!.is_favorited ? 'Saved' : 'Save'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
-            </View>
+            </Modal>
         );
     };
 
@@ -755,81 +787,73 @@ export default function HomeScreen() {
                 </View>
             </View>
 
-            {/* Daily Content */}
-            <ScrollView
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        colors={[theme.colors.accentPrimary]}
-                        tintColor={theme.colors.accentPrimary}
-                    />
-                }
-                contentContainerStyle={{
-                    padding: theme.Spacing.lg,
-                    paddingBottom: theme.Spacing.xl
-                }}
-            >
-                {/* Daily Items */}
-                {renderDailyItem(dailyItems.quote, 'quote')}
-                {renderDailyItem(dailyItems.verse, 'verse')}
-                {renderDailyItem(dailyItems.prayer, 'prayer')}
-
-                {/* Daily Affirmation */}
-                {todaysAffirmation && (
-                    <TouchableOpacity
-                        onPress={refreshAffirmation}
-                        activeOpacity={0.7}
-                    >
-                        <View style={{
-                            backgroundColor: theme.colors.accentPrimary + '10',
-                            borderRadius: theme.BorderRadius.lg,
-                            padding: theme.Spacing.xl,
-                            marginTop: theme.Spacing.md,
-                            borderLeftWidth: 4,
-                            borderLeftColor: theme.colors.accentPrimary,
-                        }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.Spacing.md }}>
+            <View style={{ flex: 1, padding: theme.Spacing.md, gap: theme.Spacing.md }}>
+                <View style={{ flex: 1, flexDirection: 'row', gap: theme.Spacing.md }}>
+                    {renderDailyItem(dailyItems.quote, 'quote')}
+                    {renderDailyItem(dailyItems.verse, 'verse')}
+                </View>
+                <View style={{ flex: 1, flexDirection: 'row', gap: theme.Spacing.md }}>
+                    {renderDailyItem(dailyItems.prayer, 'prayer')}
+                    {todaysAffirmation && (
+                        <TouchableOpacity
+                            onPress={() => setExpandedContent('affirmation')}
+                            activeOpacity={0.8}
+                            style={{
+                                flex: 1,
+                                backgroundColor: theme.colors.accentPrimary + '10',
+                                borderRadius: theme.BorderRadius.lg,
+                                borderWidth: 1,
+                                borderColor: theme.colors.accentPrimary + '40',
+                                padding: theme.Spacing.md,
+                            }}
+                        >
+                            <View style={{
+                                backgroundColor: theme.colors.accentPrimary + '25',
+                                padding: theme.Spacing.sm,
+                                borderRadius: theme.BorderRadius.round,
+                                alignSelf: 'flex-start',
+                            }}>
                                 <Ionicons
                                     name={getCategoryIcon(todaysAffirmation.category)}
-                                    size={24}
+                                    size={18}
                                     color={theme.colors.accentPrimary}
                                 />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{
-                                        fontSize: 14,
-                                        fontWeight: '700',
-                                        color: theme.colors.accentPrimary,
-                                        marginBottom: 4,
-                                        textTransform: 'uppercase',
-                                        letterSpacing: 1,
-                                    }}>
-                                        Daily Affirmation
-                                    </Text>
-                                    <Text style={{
-                                        fontSize: 16,
-                                        color: theme.colors.text,
-                                        lineHeight: 24,
-                                        fontStyle: 'italic',
-                                    }}>
-                                        {todaysAffirmation.affirmation_text}
-                                    </Text>
-                                    <Text style={{
-                                        fontSize: 12,
-                                        color: theme.colors.textSecondary,
-                                        marginTop: theme.Spacing.sm,
-                                    }}>
-                                        Tap to refresh affirmation
-                                    </Text>
-                                </View>
                             </View>
-                        </View>
-                    </TouchableOpacity>
-                )}
-
-            </ScrollView>
+                            <Text style={{
+                                fontSize: 12,
+                                fontWeight: '700',
+                                color: theme.colors.accentPrimary,
+                                marginTop: theme.Spacing.sm,
+                                textTransform: 'uppercase',
+                            }}>
+                                Daily Affirmation
+                            </Text>
+                            <Text
+                                numberOfLines={5}
+                                style={{
+                                    flex: 1,
+                                    fontSize: 14,
+                                    color: theme.colors.text,
+                                    lineHeight: 19,
+                                    fontStyle: 'italic',
+                                    marginTop: theme.Spacing.sm,
+                                }}
+                            >
+                                {todaysAffirmation.affirmation_text}
+                            </Text>
+                            <Text style={{
+                                fontSize: 11,
+                                color: theme.colors.accentPrimary,
+                                fontWeight: '600',
+                                marginTop: theme.Spacing.sm,
+                            }}>
+                                Tap to read more
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+            {renderExpandedContent()}
         </View>
     );
 }
