@@ -1,5 +1,5 @@
 // app/(tabs)/AudioRoomScreen.tsx - Final clean version
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -21,21 +21,19 @@ export default function AudioRoomScreen() {
     const theme = useTheme();
     const { user, isAuthenticated } = useAuth();
     const audioPlayer = useAudioPlayer();
+    const { setPlaylist } = audioPlayer;
 
     const [audios, setAudios] = useState<AudioComfort[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [togglingFavorites, setTogglingFavorites] = useState<{ [key: string]: boolean }>({});
 
-    useEffect(() => {
-        loadAudios();
-    }, []);
-
-    const loadAudios = async () => {
+    const loadAudios = useCallback(async () => {
         try {
             setLoading(true);
             const data = await audioService.getAudioComforts();
             setAudios(data);
+            setPlaylist(data);
         } catch (error) {
             console.error('Error loading audios:', error);
             Alert.alert('Error', 'Unable to load audio comforts.');
@@ -43,7 +41,11 @@ export default function AudioRoomScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [setPlaylist]);
+
+    useEffect(() => {
+        loadAudios();
+    }, [loadAudios]);
 
     const handleRefresh = () => {
         setRefreshing(true);
@@ -124,7 +126,7 @@ export default function AudioRoomScreen() {
                         colors={[theme.colors.accentPrimary]}
                     />
                 }
-                contentContainerStyle={{ padding: theme.Spacing.md }}
+                contentContainerStyle={{ padding: theme.Spacing.md, paddingBottom: 220 }}
             >
                 {audios.length === 0 ? (
                     <View style={{ alignItems: 'center', paddingVertical: theme.Spacing.xl }}>
@@ -157,7 +159,7 @@ export default function AudioRoomScreen() {
                             key={audio.id}
                             audio={audio}
                             audioPlayer={audioPlayer}
-                            onToggleFavorite={isAuthenticated ? handleToggleFavorite : undefined}
+                            onToggleFavorite={isAuthenticated && !audio.is_storage_only ? handleToggleFavorite : undefined}
                             togglingFavorites={togglingFavorites}
                         />
                     ))

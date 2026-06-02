@@ -68,3 +68,16 @@ npm run build:apk-cloud
 - Apply later migrations in filename order to keep RLS policies and API grants hardened.
 - In Supabase Dashboard, enable leaked password protection under **Authentication > Providers > Email** when the project plan supports it.
 - Promote administrators through trusted database tooling. The client RPC only permits existing administrators to change roles.
+
+## Audio Storage
+
+The app uses `public.audio_comforts` as its audio catalog and the
+`audio-files` and `prayer-audio` Storage buckets for the uploaded files.
+User favorites and listening progress are stored in
+`public.user_audio_favorites` and `public.user_audio_progress`.
+
+Apply `supabase/migrations/202606020006_align_legacy_audio_schema.sql` to align
+existing projects with these table names and Storage policies. Files uploaded
+directly into either Storage bucket are shown as playable fallback items.
+Upload through the admin screen when possible so an `audio_comforts` catalog
+record is also created and favorites, progress, and play counts are enabled.

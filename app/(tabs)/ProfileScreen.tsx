@@ -11,6 +11,7 @@ import {
     Switch,
     StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ type ProfileStat = {
 };
 
 type TabType = 'stats' | 'settings';
+const ACCENT_COLORS = ['#A8C1B4', '#8B5CF6', '#3B82F6', '#EC4899', '#F59E0B'];
 
 export default function ProfileScreen() {
     const theme = useTheme();
@@ -38,6 +40,7 @@ export default function ProfileScreen() {
     const [saving, setSaving] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [statsLoading, setStatsLoading] = useState(true);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     const loadProfileStats = useCallback(async () => {
         if (!user) {
@@ -53,11 +56,11 @@ export default function ProfileScreen() {
                 { count: prayerFavoritesCount, error: prayerFavoritesError },
             ] = await Promise.all([
                 supabase
-                    .from('audio_progress')
+                    .from('user_audio_progress')
                     .select('progress_seconds, completed')
                     .eq('user_id', user.id),
                 supabase
-                    .from('audio_favorites')
+                    .from('user_audio_favorites')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', user.id),
                 supabase
@@ -194,6 +197,41 @@ export default function ProfileScreen() {
         } catch (error) {
             console.error('Error updating setting:', error);
             Alert.alert('Error', 'Failed to update setting');
+        }
+    };
+
+    const handleChooseAvatar = async () => {
+        if (!user) return;
+
+        setUploadingAvatar(true);
+        try {
+            const asset = await profileService.pickAvatar();
+            if (!asset) return;
+
+            const updatedProfile = await profileService.uploadAvatar(user.id, asset);
+            setProfile(updatedProfile);
+            Alert.alert('Success', 'Profile picture updated successfully');
+        } catch (error) {
+            console.error('Error uploading profile picture:', error);
+            Alert.alert('Error', error instanceof Error ? error.message : 'Failed to upload profile picture');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        if (!user) return;
+
+        setUploadingAvatar(true);
+        try {
+            const updatedProfile = await profileService.removeAvatar(user.id);
+            setProfile(updatedProfile);
+            Alert.alert('Success', 'Profile picture removed');
+        } catch (error) {
+            console.error('Error removing profile picture:', error);
+            Alert.alert('Error', 'Failed to remove profile picture');
+        } finally {
+            setUploadingAvatar(false);
         }
     };
 
@@ -461,6 +499,47 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
+                <View style={theme.card}>
+                    <Text style={{
+                        fontSize: 18,
+                        fontWeight: '600',
+                        color: theme.colors.text,
+                        marginBottom: theme.Spacing.sm,
+                    }}>
+                        Accent Color
+                    </Text>
+                    <Text style={{
+                        fontSize: 14,
+                        color: theme.colors.textSecondary,
+                        marginBottom: theme.Spacing.md,
+                    }}>
+                        Choose the highlight color used across the app.
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.Spacing.md }}>
+                        {ACCENT_COLORS.map(color => (
+                            <TouchableOpacity
+                                key={color}
+                                accessibilityLabel={`Use ${color} as accent color`}
+                                onPress={() => handleSettingChange('accentColor', color)}
+                                style={{
+                                    width: 42,
+                                    height: 42,
+                                    borderRadius: 21,
+                                    backgroundColor: color,
+                                    borderWidth: settings.accentColor === color ? 3 : 1,
+                                    borderColor: settings.accentColor === color ? theme.colors.text : theme.colors.border,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                {settings.accentColor === color && (
+                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
                 {/* Audio Quality */}
                 <View style={theme.card}>
                     <Text style={{
@@ -596,13 +675,21 @@ export default function ProfileScreen() {
                             justifyContent: 'center',
                             alignItems: 'center',
                         }}>
-                            <Text style={{
-                                fontSize: 32,
-                                fontWeight: 'bold',
-                                color: theme.colors.textInverse,
-                            }}>
-                                {getInitials(profile, user?.email || '')}
-                            </Text>
+                            {profile?.avatar_url ? (
+                                <Image
+                                    source={{ uri: profile.avatar_url }}
+                                    style={{ width: 80, height: 80, borderRadius: 40 }}
+                                    contentFit="cover"
+                                />
+                            ) : (
+                                <Text style={{
+                                    fontSize: 32,
+                                    fontWeight: 'bold',
+                                    color: theme.colors.textInverse,
+                                }}>
+                                    {getInitials(profile, user?.email || '')}
+                                </Text>
+                            )}
                         </View>
                     </View>
 
@@ -778,21 +865,45 @@ export default function ProfileScreen() {
                                 alignItems: 'center',
                                 marginBottom: theme.Spacing.md,
                             }}>
-                                <Text style={{
-                                    fontSize: 36,
-                                    fontWeight: 'bold',
-                                    color: theme.colors.textInverse,
-                                }}>
-                                    {getInitials(profile, user?.email || '')}
-                                </Text>
+                                {profile?.avatar_url ? (
+                                    <Image
+                                        source={{ uri: profile.avatar_url }}
+                                        style={{ width: 100, height: 100, borderRadius: 50 }}
+                                        contentFit="cover"
+                                    />
+                                ) : (
+                                    <Text style={{
+                                        fontSize: 36,
+                                        fontWeight: 'bold',
+                                        color: theme.colors.textInverse,
+                                    }}>
+                                        {getInitials(profile, user?.email || '')}
+                                    </Text>
+                                )}
                             </View>
-                            <Text style={{
-                                color: theme.colors.textSecondary,
-                                fontSize: 14,
-                                textAlign: 'center',
-                            }}>
-                                Avatar upload coming soon
-                            </Text>
+                            <TouchableOpacity
+                                onPress={handleChooseAvatar}
+                                disabled={uploadingAvatar}
+                                style={[theme.button, { paddingVertical: theme.Spacing.sm }]}
+                            >
+                                {uploadingAvatar ? (
+                                    <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                                ) : (
+                                    <Text style={theme.buttonText}>
+                                        {profile?.avatar_url ? 'Change Picture' : 'Choose Picture'}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                            {profile?.avatar_url && !uploadingAvatar && (
+                                <TouchableOpacity
+                                    onPress={handleRemoveAvatar}
+                                    style={{ marginTop: theme.Spacing.md }}
+                                >
+                                    <Text style={{ color: theme.colors.error, fontSize: 14 }}>
+                                        Remove Picture
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         {/* Name Input */}

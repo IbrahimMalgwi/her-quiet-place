@@ -31,12 +31,7 @@ export default function AudioCard({
         }
 
         try {
-            if (audioPlayer.currentAudio?.id === audio.id) {
-                await audioPlayer.playPause();
-            } else {
-                await audioPlayer.loadAudio(audio);
-                await audioPlayer.playPause();
-            }
+            await audioPlayer.playAudio(audio);
         } catch (error) {
             console.error('Error playing audio:', error);
         }

@@ -19,6 +19,7 @@ export type AudioComfort = {
     current_position?: number;
     storage_path?: string;
     bucket_name?: string;
+    is_storage_only?: boolean;
 };
 
 export type PlaybackState = {

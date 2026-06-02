@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface AppSettings {
     pushNotifications: boolean;
     darkMode: boolean;
+    accentColor: string;
     audioQuality: 'low' | 'medium' | 'high';
     autoPlay: boolean;
     downloadOverWifiOnly: boolean;
@@ -12,6 +13,7 @@ export interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
     pushNotifications: true,
     darkMode: false,
+    accentColor: '#A8C1B4',
     audioQuality: 'medium',
     autoPlay: true,
     downloadOverWifiOnly: true,

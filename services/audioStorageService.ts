@@ -166,7 +166,8 @@ class AudioStorageService {
             progress: 0,
             current_position: 0,
             storage_path: file.name,
-            bucket_name: file.url.includes('prayer-audio') ? 'prayer-audio' : 'audio-files'
+            bucket_name: file.url.includes('prayer-audio') ? 'prayer-audio' : 'audio-files',
+            is_storage_only: true,
         }));
     }
 

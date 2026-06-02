@@ -1,6 +1,7 @@
 // services/audioService.ts
 import { AudioComfort, AudioProgress } from '../types/audio';
 import { supabase } from '../lib/supabase';
+import { audioStorageService } from './audioStorageService';
 
 class AudioService {
     /**
@@ -17,18 +18,31 @@ class AudioService {
         ]);
 
         if (error) throw error;
-        if (!user || !audios?.length) return audios || [];
+
+        const catalogAudios = audios || [];
+        const storageAudios = await audioStorageService.getAudioFiles();
+        const registeredStoragePaths = new Set(
+            catalogAudios.flatMap(audio => audio.storage_path ? [audio.storage_path] : [])
+        );
+        const registeredUrls = new Set(catalogAudios.map(audio => audio.audio_url));
+        const unregisteredStorageAudios = storageAudios.filter(audio =>
+            !registeredUrls.has(audio.audio_url)
+            && (!audio.storage_path || !registeredStoragePaths.has(audio.storage_path))
+        );
+        const availableAudios = [...catalogAudios, ...unregisteredStorageAudios];
+
+        if (!user || !catalogAudios.length) return availableAudios;
 
         const { data: favorites, error: favoritesError } = await supabase
-            .from('audio_favorites')
+            .from('user_audio_favorites')
             .select('audio_id')
             .eq('user_id', user.id)
-            .in('audio_id', audios.map(audio => audio.id));
+            .in('audio_id', catalogAudios.map(audio => audio.id));
 
         if (favoritesError) throw favoritesError;
 
         const favoriteIds = new Set((favorites || []).map(favorite => favorite.audio_id));
-        return audios.map(audio => ({
+        return availableAudios.map(audio => ({
             ...audio,
             is_favorited: favoriteIds.has(audio.id),
         }));
@@ -52,7 +66,7 @@ class AudioService {
 
     async getFavorites(userId: string): Promise<AudioComfort[]> {
         const { data, error } = await supabase
-            .from('audio_favorites')
+            .from('user_audio_favorites')
             .select('audio_comforts(*)')
             .eq('user_id', userId);
 
@@ -62,7 +76,7 @@ class AudioService {
 
     async toggleFavorite(audioId: string, userId: string): Promise<boolean> {
         const { data: favorite, error: fetchError } = await supabase
-            .from('audio_favorites')
+            .from('user_audio_favorites')
             .select('audio_id')
             .eq('audio_id', audioId)
             .eq('user_id', userId)
@@ -72,7 +86,7 @@ class AudioService {
 
         if (favorite) {
             const { error } = await supabase
-                .from('audio_favorites')
+                .from('user_audio_favorites')
                 .delete()
                 .eq('audio_id', audioId)
                 .eq('user_id', userId);
@@ -82,7 +96,7 @@ class AudioService {
         }
 
         const { error } = await supabase
-            .from('audio_favorites')
+            .from('user_audio_favorites')
             .insert({ audio_id: audioId, user_id: userId });
 
         if (error) throw error;
@@ -91,7 +105,7 @@ class AudioService {
 
     async getProgress(audioId: string, userId: string): Promise<AudioProgress | null> {
         const { data, error } = await supabase
-            .from('audio_progress')
+            .from('user_audio_progress')
             .select('*')
             .eq('audio_id', audioId)
             .eq('user_id', userId)
@@ -103,7 +117,7 @@ class AudioService {
 
     async saveProgress(audioId: string, progressSeconds: number, userId: string, completed: boolean = false): Promise<void> {
         const { error } = await supabase
-            .from('audio_progress')
+            .from('user_audio_progress')
             .upsert({
                 audio_id: audioId,
                 user_id: userId,
