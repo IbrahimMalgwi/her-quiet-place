@@ -9,17 +9,24 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import InactivitySessionManager from '../components/InactivitySessionManager';
 
 // Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutContent() {
     const { user, loading, userRole, passwordRecovery } = useAuth();
     const theme = useTheme();
 
     useEffect(() => {
-        if (!loading) {
-            // Hide splash screen when auth state is determined
-            SplashScreen.hideAsync();
+        async function hideSplash() {
+            if (!loading) {
+                try {
+                    await SplashScreen.hideAsync();
+                } catch (error) {
+                    console.warn('Error hiding splash screen:', error);
+                }
+            }
         }
+
+        hideSplash();
     }, [loading]);
 
     // Show loading indicator while checking auth state
