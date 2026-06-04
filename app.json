@@ -4,17 +4,17 @@
     "slug": "her-quiet-place",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-1024-1024.png",
     "scheme": "herquietplace",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash-4096-4096.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff",
       "imageWidth": 200,
       "dark": {
-        "image": "./assets/images/splash-icon.png",
+        "image": "./assets/images/splash-4096-4096.png",
         "resizeMode": "contain",
         "backgroundColor": "#000000"
       }
@@ -71,7 +71,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-4096-4096.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Image,
     ScrollView,
     StatusBar,
     Text,
@@ -9,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../constants/theme';
+
+const logoImage = require('../../assets/images/icon-1024-1024.png');
 
 const features = [
     {
@@ -74,28 +77,16 @@ export default function WelcomeScreen() {
                 }}
             >
                 <View style={{ flex: 1 }}>
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        alignSelf: 'flex-start',
-                        backgroundColor: theme.colors.backgroundCard + 'D9',
-                        borderRadius: theme.BorderRadius.round,
-                        paddingHorizontal: theme.Spacing.md,
-                        paddingVertical: theme.Spacing.sm,
-                        borderWidth: 1,
-                        borderColor: theme.colors.accentPrimary + '35',
-                    }}>
-                        <Ionicons name="leaf-outline" size={17} color={theme.colors.accentPrimary} />
-                        <Text style={{
-                            color: theme.colors.accentPrimary,
-                            fontSize: 13,
-                            fontWeight: '700',
-                            marginLeft: theme.Spacing.sm,
-                            letterSpacing: 0.4,
-                        }}>
-                            HER QUIET PLACE
-                        </Text>
-                    </View>
+                    <Image
+                        source={logoImage}
+                        resizeMode="contain"
+                        accessibilityLabel="Her Quiet Place logo"
+                        style={{
+                            width: 86,
+                            height: 86,
+                            borderRadius: 24,
+                        }}
+                    />
 
                     <View style={{ marginTop: theme.Spacing.xxl }}>
                         <Text style={{
@@ -105,7 +96,7 @@ export default function WelcomeScreen() {
                             lineHeight: 48,
                             letterSpacing: -1,
                         }}>
-                            A softer place{'\n'}to land.
+                            Her Quiet{'\n'}Place
                         </Text>
                         <Text style={{
                             color: theme.colors.textSecondary,

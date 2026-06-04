@@ -5,6 +5,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    Image,
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
@@ -15,6 +16,8 @@ import {
 import { useTheme } from '../../constants/theme';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
+const logoImage = require('../../assets/images/icon-1024-1024.png');
 
 export default function LoginScreen() {
     const { signIn, user, userRole, loading: authLoading } = useAuth();
@@ -164,8 +167,16 @@ export default function LoginScreen() {
                         elevation: 5,
                         marginBottom: theme.Spacing.lg,
                     }}>
-                        <Ionicons name="heart" size={42} color={theme.colors.accentPrimary} />
-                        <Ionicons name="leaf-outline" size={26} color={theme.colors.gold} style={{ position: 'absolute', right: 20, top: 18 }} />
+                        <Image
+                            source={logoImage}
+                            resizeMode="contain"
+                            accessibilityLabel="Her Quiet Place logo"
+                            style={{
+                                width: 86,
+                                height: 86,
+                                borderRadius: 24,
+                            }}
+                        />
                     </View>
                     <Text style={{
                         fontSize: 44,
