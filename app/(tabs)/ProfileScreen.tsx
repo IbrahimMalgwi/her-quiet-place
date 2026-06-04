@@ -26,7 +26,7 @@ type ProfileStat = {
 };
 
 type TabType = 'stats' | 'settings';
-const ACCENT_COLORS = ['#A8C1B4', '#8B5CF6', '#3B82F6', '#EC4899', '#F59E0B'];
+const ACCENT_COLORS = ['#C96578', '#8B2E3A', '#F6B7C1', '#C98A4B', '#A85A67'];
 
 export default function ProfileScreen() {
     const theme = useTheme();

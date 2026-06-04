@@ -13,13 +13,14 @@ export interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
     pushNotifications: true,
     darkMode: false,
-    accentColor: '#A8C1B4',
+    accentColor: '#C96578',
     audioQuality: 'medium',
     autoPlay: true,
     downloadOverWifiOnly: true,
 };
 
 const SETTINGS_KEY = 'app_settings';
+const LEGACY_DEFAULT_ACCENT = '#A8C1B4';
 type SettingsListener = (settings: AppSettings) => void;
 
 class SettingsService {
@@ -29,7 +30,14 @@ class SettingsService {
         try {
             const settingsJson = await AsyncStorage.getItem(SETTINGS_KEY);
             if (settingsJson) {
-                return { ...DEFAULT_SETTINGS, ...JSON.parse(settingsJson) };
+                const parsedSettings = JSON.parse(settingsJson);
+                return {
+                    ...DEFAULT_SETTINGS,
+                    ...parsedSettings,
+                    accentColor: parsedSettings.accentColor === LEGACY_DEFAULT_ACCENT
+                        ? DEFAULT_SETTINGS.accentColor
+                        : parsedSettings.accentColor,
+                };
             }
             return DEFAULT_SETTINGS;
         } catch (error) {

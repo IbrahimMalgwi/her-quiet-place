@@ -84,7 +84,7 @@ export default function AudioCard({
                             width: 44,
                             height: 44,
                             borderRadius: 22,
-                            backgroundColor: '#A8C1B4',
+                            backgroundColor: '#C96578',
                             justifyContent: 'center',
                             alignItems: 'center',
                             marginLeft: 8,
@@ -113,12 +113,12 @@ export default function AudioCard({
                     {/* Category */}
                     {audio.category && (
                         <View style={{
-                            backgroundColor: '#A8C1B420',
+                            backgroundColor: '#C9657820',
                             paddingHorizontal: 8,
                             paddingVertical: 2,
                             borderRadius: 12,
                         }}>
-                            <Text style={{ fontSize: 10, color: '#A8C1B4', fontWeight: '500' }}>
+                            <Text style={{ fontSize: 10, color: '#C96578', fontWeight: '500' }}>
                                 {audio.category}
                             </Text>
                         </View>
@@ -143,12 +143,12 @@ export default function AudioCard({
                             style={{ padding: 4 }}
                         >
                             {togglingFavorites[audio.id] ? (
-                                <ActivityIndicator size="small" color="#A8C1B4" />
+                                <ActivityIndicator size="small" color="#C96578" />
                             ) : (
                                 <Ionicons
                                     name={audio.is_favorited ? "heart" : "heart-outline"}
                                     size={16}
-                                    color={audio.is_favorited ? '#A8C1B4' : '#64748B'}
+                                    color={audio.is_favorited ? '#C96578' : '#64748B'}
                                 />
                             )}
                         </TouchableOpacity>

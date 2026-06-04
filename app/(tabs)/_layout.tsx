@@ -1,5 +1,6 @@
 // app/(tabs)/_layout.tsx
 import React from 'react';
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 
 import { useTheme } from '../../constants/theme';
@@ -12,12 +13,32 @@ export default function TabsLayout() {
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: theme.colors.accentPrimary,
-                tabBarInactiveTintColor: theme.colors.textSecondary,
+                headerShown: false,
+                tabBarActiveTintColor: theme.colors.white,
+                tabBarInactiveTintColor: theme.colors.white + 'D0',
+                tabBarLabelStyle: {
+                    fontSize: 12,
+                    fontWeight: '500',
+                    marginTop: 2,
+                },
+                tabBarItemStyle: {
+                    paddingTop: 8,
+                },
                 tabBarStyle: {
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    borderTopColor: theme.colors.border,
-                    borderTopWidth: 1,
+                    height: 86,
+                    paddingTop: 8,
+                    paddingBottom: 12,
+                    paddingHorizontal: 6,
+                    backgroundColor: theme.colors.accentPrimary,
+                    borderTopWidth: 0,
+                    borderTopLeftRadius: 30,
+                    borderTopRightRadius: 30,
+                    position: 'absolute',
+                    shadowColor: theme.colors.accentDeep,
+                    shadowOffset: { width: 0, height: -6 },
+                    shadowOpacity: 0.14,
+                    shadowRadius: 18,
+                    elevation: 16,
                 },
                 headerStyle: {
                     backgroundColor: theme.colors.background,
@@ -31,7 +52,7 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="HomeScreen"
                 options={{
-                    title: 'Daily',
+                    title: 'Home',
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons
                             name={focused ? "home" : "home-outline"}
@@ -39,7 +60,52 @@ export default function TabsLayout() {
                             color={color}
                         />
                     ),
-                    headerTitle: 'Daily Strength',
+                }}
+            />
+            <Tabs.Screen
+                name="AudioRoomScreen"
+                options={{
+                    title: 'Explore',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons
+                            name={focused ? "compass" : "compass-outline"}
+                            size={size}
+                            color={color}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="PrayerRoomScreen"
+                options={{
+                    title: '',
+                    tabBarItemStyle: {
+                        paddingTop: 0,
+                    },
+                    tabBarIcon: ({ focused }) => (
+                        <View style={{
+                            width: 74,
+                            height: 74,
+                            borderRadius: 37,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: theme.colors.accentPrimary,
+                            borderWidth: 5,
+                            borderColor: theme.colors.white,
+                            marginTop: -34,
+                            shadowColor: theme.colors.accentDeep,
+                            shadowOffset: { width: 0, height: 6 },
+                            shadowOpacity: 0.22,
+                            shadowRadius: 12,
+                            elevation: 10,
+                        }}>
+                            <Ionicons
+                                name={focused ? "heart" : "heart"}
+                                size={34}
+                                color={theme.colors.white}
+                            />
+                        </View>
+                    ),
                 }}
             />
             <Tabs.Screen
@@ -53,35 +119,6 @@ export default function TabsLayout() {
                             color={color}
                         />
                     ),
-                    headerTitle: 'My Journal',
-                }}
-            />
-            <Tabs.Screen
-                name="PrayerRoomScreen"
-                options={{
-                    title: 'Prayer',
-                    tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons
-                            name={focused ? "heart" : "heart-outline"}
-                            size={size}
-                            color={color}
-                        />
-                    ),
-                    headerTitle: 'Prayer Room',
-                }}
-            />
-            <Tabs.Screen
-                name="AudioRoomScreen"
-                options={{
-                    title: 'Audio',
-                    tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons
-                            name={focused ? "musical-notes" : "musical-notes-outline"}
-                            size={size}
-                            color={color}
-                        />
-                    ),
-                    headerTitle: 'Audio Comforts',
                 }}
             />
             <Tabs.Screen
@@ -95,12 +132,12 @@ export default function TabsLayout() {
                             color={color}
                         />
                     ),
-                    headerTitle: 'My Profile',
                 }}
             />
             <Tabs.Screen
                 name="FavoritesScreen"
                 options={{
+                    href: null,
                     title: 'Saved',
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons

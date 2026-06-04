@@ -10,6 +10,8 @@ import {
     Alert,
     Animated,
     Modal,
+    StatusBar,
+    Platform,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +19,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
 import { streakService, UserStreak } from "../../services/streakService";
+import { router } from "expo-router";
 
 interface DailyItem {
     id: string;
@@ -430,17 +433,9 @@ export default function HomeScreen() {
 
     const getTypeColor = (type: string) => {
         switch (type) {
-            case 'prayer': return '#ef4444';
-            case 'verse': return '#10b981';
+            case 'prayer': return theme.colors.accentPrimary;
+            case 'verse': return theme.colors.accentDeep;
             default: return theme.colors.accentPrimary;
-        }
-    };
-
-    const getTypeBackground = (type: string) => {
-        switch (type) {
-            case 'prayer': return '#fef2f2';
-            case 'verse': return '#f0fdf4';
-            default: return theme.colors.accentPrimary + '15';
         }
     };
 
@@ -493,68 +488,178 @@ export default function HomeScreen() {
     };
 
     const renderDailyItem = (item: DailyItem | null, type: 'quote' | 'verse' | 'prayer') => {
-        if (!item) {
-            console.log(`No ${type} item to render`);
-            return null;
-        }
-
-        console.log(`Rendering ${type}:`, item);
+        if (!item) return null;
 
         return (
             <TouchableOpacity
                 key={type}
-                activeOpacity={0.8}
+                activeOpacity={0.86}
                 onPress={() => setExpandedContent(type)}
                 style={{
-                    flex: 1,
-                    backgroundColor: getTypeBackground(type),
-                    borderRadius: theme.BorderRadius.lg,
+                    backgroundColor: theme.colors.backgroundCard,
+                    borderRadius: theme.BorderRadius.xl,
+                    padding: theme.Spacing.lg,
                     borderWidth: 1,
-                    borderColor: getTypeColor(type) + '40',
-                    padding: theme.Spacing.md,
+                    borderColor: theme.colors.white,
+                    shadowColor: theme.colors.accentDeep,
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 18,
+                    elevation: 3,
                 }}
             >
-                <View style={{
-                    backgroundColor: getTypeColor(type) + '25',
-                    padding: theme.Spacing.sm,
-                    borderRadius: theme.BorderRadius.round,
-                    alignSelf: 'flex-start',
-                }}>
-                    <Ionicons name={getTypeIcon(type)} size={18} color={getTypeColor(type)} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                        <Ionicons name={getTypeIcon(type)} size={22} color={getTypeColor(type)} />
+                        <Text style={{ color: theme.colors.text, fontSize: 19, fontWeight: '800' }}>
+                            {getTypeTitle(type)}
+                        </Text>
+                    </View>
+                    <Text style={{ color: getTypeColor(type), fontSize: 13, fontWeight: '700' }}>See All</Text>
                 </View>
-
-                <Text style={{
-                    color: getTypeColor(type),
-                    fontSize: 12,
-                    fontWeight: '700',
-                    marginTop: theme.Spacing.sm,
-                    textTransform: 'uppercase',
-                }}>
-                    {getTypeTitle(type)}
-                </Text>
 
                 <Text
                     numberOfLines={5}
                     style={{
                         color: theme.colors.text,
-                        fontSize: 14,
-                        lineHeight: 19,
-                        marginTop: theme.Spacing.sm,
-                        flex: 1,
+                        fontSize: 17,
+                        lineHeight: 28,
+                        marginTop: theme.Spacing.lg,
                     }}
                 >
-                    {item.message}
+                    &ldquo;{item.message}&rdquo;
                 </Text>
 
-                <Text style={{
-                    color: getTypeColor(type),
-                    fontSize: 11,
-                    fontWeight: '600',
-                    marginTop: theme.Spacing.sm,
-                }}>
-                    Tap to read more
-                </Text>
+                {item.author && (
+                    <Text style={{
+                        color: theme.colors.accentDeep,
+                        fontSize: 16,
+                        fontWeight: '700',
+                        marginTop: theme.Spacing.md,
+                    }}>
+                        - {item.author}
+                    </Text>
+                )}
             </TouchableOpacity>
+        );
+    };
+
+    const renderFeatureTile = (
+        icon: React.ComponentProps<typeof Ionicons>['name'],
+        title: string,
+        subtitle: string,
+        onPress: () => void,
+    ) => (
+        <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={onPress}
+            style={{
+                width: '48%',
+                minHeight: 132,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.colors.backgroundCard,
+                borderRadius: theme.BorderRadius.xl,
+                padding: theme.Spacing.md,
+                borderWidth: 1,
+                borderColor: theme.colors.white,
+                shadowColor: theme.colors.accentDeep,
+                shadowOffset: { width: 0, height: 7 },
+                shadowOpacity: 0.07,
+                shadowRadius: 16,
+                elevation: 2,
+            }}
+        >
+            <Ionicons name={icon} size={46} color={theme.colors.accentPrimary} />
+            <Text style={{
+                color: theme.colors.text,
+                fontSize: 19,
+                fontWeight: '800',
+                marginTop: theme.Spacing.sm,
+                textAlign: 'center',
+            }}>
+                {title}
+            </Text>
+            <Text style={{
+                color: theme.colors.textSecondary,
+                fontSize: 13,
+                marginTop: theme.Spacing.xs,
+                textAlign: 'center',
+            }}>
+                {subtitle}
+            </Text>
+        </TouchableOpacity>
+    );
+
+    const getGreetingName = () => {
+        const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+        const emailName = user?.email?.split('@')[0];
+        const rawName = metadataName || emailName || 'Beautiful';
+        return String(rawName).split(/[ ._-]/)[0] || 'Beautiful';
+    };
+
+    const getCompletedStreakDays = () => Math.min(userStreak?.current_streak || 0, 7);
+
+    const renderStreakCard = () => {
+        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+        const completed = getCompletedStreakDays();
+
+        return (
+            <View style={{
+                backgroundColor: theme.colors.backgroundCard,
+                borderRadius: theme.BorderRadius.xl,
+                padding: theme.Spacing.lg,
+                borderWidth: 1,
+                borderColor: theme.colors.white,
+                shadowColor: theme.colors.accentDeep,
+                shadowOffset: { width: 0, height: 7 },
+                shadowOpacity: 0.07,
+                shadowRadius: 16,
+                elevation: 2,
+            }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 19, fontWeight: '800' }}>Your Streak</Text>
+                    <Text style={{ color: theme.colors.accentDeep, fontSize: 18, fontWeight: '700' }}>
+                        {userStreak?.current_streak || 0} Days
+                    </Text>
+                </View>
+
+                <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: theme.Spacing.lg,
+                }}>
+                    {days.map((day, index) => {
+                        const isComplete = index < completed;
+
+                        return (
+                            <View key={`${day}-${index}`} style={{ alignItems: 'center', flex: 1 }}>
+                                <View style={{
+                                    width: 34,
+                                    height: 34,
+                                    borderRadius: 17,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: isComplete ? theme.colors.accentPrimary : theme.colors.backgroundCard,
+                                    borderWidth: 2,
+                                    borderColor: isComplete ? theme.colors.accentPrimary : theme.colors.accentSecondary,
+                                }}>
+                                    {isComplete && <Ionicons name="checkmark" size={20} color={theme.colors.white} />}
+                                </View>
+                                <Text style={{
+                                    color: theme.colors.textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: '700',
+                                    marginTop: theme.Spacing.sm,
+                                }}>
+                                    {day}
+                                </Text>
+                            </View>
+                        );
+                    })}
+                </View>
+            </View>
         );
     };
 
@@ -710,149 +815,170 @@ export default function HomeScreen() {
 
     return (
         <View style={theme.screen}>
-            {/* Enhanced Header with Logout */}
+            <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
             <View style={{
-                paddingHorizontal: theme.Spacing.lg,
-                paddingVertical: theme.Spacing.lg,
-                backgroundColor: theme.colors.background,
-                borderBottomWidth: 1,
-                borderBottomColor: theme.colors.border,
-            }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{
-                            fontSize: 28,
-                            fontWeight: 'bold',
-                            color: theme.colors.text,
-                        }}>
-                            Daily Strength
-                        </Text>
+                position: 'absolute',
+                top: -120,
+                right: -95,
+                width: 250,
+                height: 250,
+                borderRadius: 125,
+                backgroundColor: theme.colors.accentSecondary + '35',
+            }} />
+            <View style={{
+                position: 'absolute',
+                top: 260,
+                left: -100,
+                width: 220,
+                height: 220,
+                borderRadius: 110,
+                backgroundColor: theme.colors.white + '70',
+            }} />
 
-                        {/* User info and streak */}
-                        {user && userStreak && userStreak.current_streak > 0 && (
-                            <Animated.View
-                                style={[
-                                    {
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        marginTop: theme.Spacing.sm,
-                                        backgroundColor: theme.colors.accentPrimary + '20',
-                                        paddingHorizontal: theme.Spacing.sm,
-                                        paddingVertical: theme.Spacing.xs,
-                                        borderRadius: theme.BorderRadius.sm,
-                                        alignSelf: 'flex-start',
-                                    },
-                                    { transform: [{ scale: streakPulse }] }
-                                ]}
-                            >
-                                <Ionicons name="flame" size={14} color="#f59e0b" />
-                                <Text style={{
-                                    color: theme.colors.text,
-                                    fontSize: 12,
-                                    fontWeight: '600',
-                                    marginLeft: 4
-                                }}>
-                                    {getStreakMessage(userStreak.current_streak)}
-                                </Text>
-                            </Animated.View>
-                        )}
-                    </View>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                    paddingTop: Platform.OS === 'ios' ? 70 : 48,
+                    paddingHorizontal: theme.Spacing.lg,
+                    paddingBottom: 128,
+                }}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <TouchableOpacity
+                        onPress={handleRefresh}
+                        activeOpacity={0.8}
+                        style={{ paddingVertical: theme.Spacing.sm, paddingRight: theme.Spacing.md }}
+                    >
+                        <Ionicons name="menu" size={34} color={theme.colors.accentPrimary} />
+                    </TouchableOpacity>
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                    {user && (
                         <TouchableOpacity
-                            onPress={handleRefresh}
-                            style={{
-                                padding: theme.Spacing.sm,
-                                backgroundColor: theme.colors.accentPrimary + '15',
-                                borderRadius: theme.BorderRadius.round,
-                            }}
-                        >
-                            <Ionicons name="refresh" size={20} color={theme.colors.accentPrimary} />
-                        </TouchableOpacity>
-
-                        {/* Logout button */}
-                        {user && (
-                            <TouchableOpacity
-                                onPress={handleLogout}
-                                style={{
-                                    padding: theme.Spacing.sm,
-                                    backgroundColor: theme.colors.error + '15',
-                                    borderRadius: theme.BorderRadius.round,
-                                }}
-                            >
-                                <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-            </View>
-
-            <View style={{ flex: 1, padding: theme.Spacing.md, gap: theme.Spacing.md }}>
-                <View style={{ flex: 1, flexDirection: 'row', gap: theme.Spacing.md }}>
-                    {renderDailyItem(dailyItems.quote, 'quote')}
-                    {renderDailyItem(dailyItems.verse, 'verse')}
-                </View>
-                <View style={{ flex: 1, flexDirection: 'row', gap: theme.Spacing.md }}>
-                    {renderDailyItem(dailyItems.prayer, 'prayer')}
-                    {todaysAffirmation && (
-                        <TouchableOpacity
-                            onPress={() => setExpandedContent('affirmation')}
+                            onPress={handleLogout}
                             activeOpacity={0.8}
-                            style={{
-                                flex: 1,
-                                backgroundColor: theme.colors.accentPrimary + '10',
-                                borderRadius: theme.BorderRadius.lg,
-                                borderWidth: 1,
-                                borderColor: theme.colors.accentPrimary + '40',
-                                padding: theme.Spacing.md,
-                            }}
+                            style={{ padding: theme.Spacing.sm }}
                         >
-                            <View style={{
-                                backgroundColor: theme.colors.accentPrimary + '25',
-                                padding: theme.Spacing.sm,
-                                borderRadius: theme.BorderRadius.round,
-                                alignSelf: 'flex-start',
-                            }}>
-                                <Ionicons
-                                    name={getCategoryIcon(todaysAffirmation.category)}
-                                    size={18}
-                                    color={theme.colors.accentPrimary}
-                                />
-                            </View>
-                            <Text style={{
-                                fontSize: 12,
-                                fontWeight: '700',
-                                color: theme.colors.accentPrimary,
-                                marginTop: theme.Spacing.sm,
-                                textTransform: 'uppercase',
-                            }}>
-                                Daily Affirmation
-                            </Text>
-                            <Text
-                                numberOfLines={5}
-                                style={{
-                                    flex: 1,
-                                    fontSize: 14,
-                                    color: theme.colors.text,
-                                    lineHeight: 19,
-                                    fontStyle: 'italic',
-                                    marginTop: theme.Spacing.sm,
-                                }}
-                            >
-                                {todaysAffirmation.affirmation_text}
-                            </Text>
-                            <Text style={{
-                                fontSize: 11,
-                                color: theme.colors.accentPrimary,
-                                fontWeight: '600',
-                                marginTop: theme.Spacing.sm,
-                            }}>
-                                Tap to read more
-                            </Text>
+                            <Ionicons name="log-out-outline" size={28} color={theme.colors.accentDeep} />
                         </TouchableOpacity>
                     )}
                 </View>
-            </View>
+
+                <View style={{ marginTop: theme.Spacing.xl, marginBottom: theme.Spacing.xl }}>
+                    <Text style={{
+                        color: theme.colors.text,
+                        fontSize: 30,
+                        fontWeight: '500',
+                        letterSpacing: -0.4,
+                    }}>
+                        Good Morning,
+                    </Text>
+                    <Text style={{
+                        color: theme.colors.accentPrimary,
+                        fontSize: 56,
+                        fontWeight: '400',
+                        fontStyle: 'italic',
+                        lineHeight: 64,
+                        fontFamily: Platform.select({ ios: 'Snell Roundhand', web: 'cursive' }),
+                    }}>
+                        {getGreetingName()}
+                    </Text>
+
+                    {userStreak && userStreak.current_streak > 0 && (
+                        <Animated.View
+                            style={[
+                                {
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    alignSelf: 'flex-start',
+                                    backgroundColor: theme.colors.white + 'B8',
+                                    paddingHorizontal: theme.Spacing.md,
+                                    paddingVertical: theme.Spacing.sm,
+                                    borderRadius: theme.BorderRadius.round,
+                                    marginTop: theme.Spacing.sm,
+                                },
+                                { transform: [{ scale: streakPulse }] }
+                            ]}
+                        >
+                            <Ionicons name="flame" size={15} color={theme.colors.gold} />
+                            <Text style={{
+                                color: theme.colors.accentDeep,
+                                fontSize: 12,
+                                fontWeight: '800',
+                                marginLeft: theme.Spacing.xs,
+                            }}>
+                                {getStreakMessage(userStreak.current_streak)}
+                            </Text>
+                        </Animated.View>
+                    )}
+                </View>
+
+                <View style={{ marginBottom: theme.Spacing.lg }}>
+                    {renderDailyItem(dailyItems.verse || dailyItems.quote || dailyItems.prayer, dailyItems.verse ? 'verse' : dailyItems.quote ? 'quote' : 'prayer')}
+                </View>
+
+                <View style={{
+                    position: 'absolute',
+                    top: 275,
+                    right: theme.Spacing.lg,
+                    width: 122,
+                    height: 122,
+                    opacity: 0.18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    <Ionicons name="flower-outline" size={74} color={theme.colors.accentPrimary} />
+                    <Ionicons name="leaf-outline" size={44} color={theme.colors.gold} style={{ position: 'absolute', right: 8, bottom: 12, transform: [{ rotate: '24deg' }] }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: theme.Spacing.md }}>
+                    {renderFeatureTile('hand-left-outline', 'Prayer Room', 'Pray & be prayed for', () => router.push('/(tabs)/PrayerRoomScreen'))}
+                    {renderFeatureTile('journal-outline', 'Journal', 'Write & reflect', () => router.push('/(tabs)/JournalScreen'))}
+                    {renderFeatureTile('headset-outline', 'Audio Comfort', 'Listen & be encouraged', () => router.push('/(tabs)/AudioRoomScreen'))}
+                    {renderFeatureTile('sunny-outline', 'Daily Strength', 'Verse, quotes & more', () => setExpandedContent(dailyItems.quote ? 'quote' : dailyItems.prayer ? 'prayer' : 'affirmation'))}
+                </View>
+
+                <View style={{ marginTop: theme.Spacing.lg }}>
+                    {renderStreakCard()}
+                </View>
+
+                {todaysAffirmation && (
+                    <TouchableOpacity
+                        activeOpacity={0.86}
+                        onPress={() => setExpandedContent('affirmation')}
+                        style={{
+                            marginTop: theme.Spacing.lg,
+                            backgroundColor: theme.colors.accentSecondary + '35',
+                            borderRadius: theme.BorderRadius.xl,
+                            padding: theme.Spacing.lg,
+                            borderWidth: 1,
+                            borderColor: theme.colors.white,
+                        }}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.Spacing.sm }}>
+                            <Ionicons
+                                name={getCategoryIcon(todaysAffirmation.category)}
+                                size={20}
+                                color={theme.colors.accentPrimary}
+                            />
+                            <Text style={{ color: theme.colors.accentDeep, fontSize: 16, fontWeight: '800' }}>
+                                Daily Affirmation
+                            </Text>
+                        </View>
+                        <Text
+                            numberOfLines={3}
+                            style={{
+                                color: theme.colors.text,
+                                fontSize: 15,
+                                lineHeight: 23,
+                                fontStyle: 'italic',
+                                marginTop: theme.Spacing.sm,
+                            }}
+                        >
+                            {todaysAffirmation.affirmation_text}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+            </ScrollView>
             {renderExpandedContent()}
         </View>
     );

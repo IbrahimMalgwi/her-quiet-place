@@ -10,6 +10,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    StatusBar,
 } from 'react-native';
 import { useTheme } from '../../constants/theme';
 import { Link, router } from 'expo-router';
@@ -101,6 +102,25 @@ export default function LoginScreen() {
             style={{ flex: 1, backgroundColor: theme.colors.background }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+            <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+            <View style={{
+                position: 'absolute',
+                top: -120,
+                right: -90,
+                width: 250,
+                height: 250,
+                borderRadius: 125,
+                backgroundColor: theme.colors.accentSecondary + '45',
+            }} />
+            <View style={{
+                position: 'absolute',
+                bottom: -130,
+                left: -100,
+                width: 280,
+                height: 280,
+                borderRadius: 140,
+                backgroundColor: theme.colors.white + '70',
+            }} />
             <ScrollView
                 contentContainerStyle={{
                     flexGrow: 1,
@@ -121,30 +141,51 @@ export default function LoginScreen() {
                         padding: theme.Spacing.sm,
                     }}
                 >
-                    <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+                    <Ionicons name="arrow-back" size={24} color={theme.colors.accentDeep} />
                 </TouchableOpacity>
 
                 {/* Header Section */}
                 <View style={{
-                    marginBottom: theme.Spacing.xxl,
                     alignItems: 'center'
                 }}>
-                    <Text style={{
-                        fontSize: 32,
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        color: theme.colors.text,
-                        marginBottom: theme.Spacing.sm
+                    <View style={{
+                        width: 104,
+                        height: 104,
+                        borderRadius: 32,
+                        backgroundColor: theme.colors.backgroundCard,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: theme.colors.white,
+                        shadowColor: theme.colors.accentDeep,
+                        shadowOffset: { width: 0, height: 10 },
+                        shadowOpacity: 0.12,
+                        shadowRadius: 20,
+                        elevation: 5,
+                        marginBottom: theme.Spacing.lg,
                     }}>
-                        Welcome Back
+                        <Ionicons name="heart" size={42} color={theme.colors.accentPrimary} />
+                        <Ionicons name="leaf-outline" size={26} color={theme.colors.gold} style={{ position: 'absolute', right: 20, top: 18 }} />
+                    </View>
+                    <Text style={{
+                        fontSize: 44,
+                        fontWeight: '400',
+                        textAlign: 'center',
+                        color: theme.colors.accentPrimary,
+                        marginBottom: theme.Spacing.xs,
+                        fontStyle: 'italic',
+                        fontFamily: Platform.select({ ios: 'Snell Roundhand', web: 'cursive' }),
+                    }}>
+                        Her Quiet Place
                     </Text>
                     <Text style={{
                         fontSize: 16,
                         textAlign: 'center',
                         color: theme.colors.textSecondary,
-                        lineHeight: 22
+                        lineHeight: 22,
+                        marginBottom: theme.Spacing.xl,
                     }}>
-                        Sign in to continue your spiritual journey
+                        Sign in to continue your quiet spiritual rhythm
                     </Text>
                 </View>
 
@@ -169,7 +210,19 @@ export default function LoginScreen() {
                 )}
 
                 {/* Form Section */}
-                <View style={{ gap: theme.Spacing.lg }}>
+                <View style={{
+                    gap: theme.Spacing.lg,
+                    backgroundColor: theme.colors.backgroundCard + 'F2',
+                    borderRadius: theme.BorderRadius.xl,
+                    padding: theme.Spacing.lg,
+                    borderWidth: 1,
+                    borderColor: theme.colors.white,
+                    shadowColor: theme.colors.accentDeep,
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.09,
+                    shadowRadius: 22,
+                    elevation: 4,
+                }}>
                     {/* Email Input */}
                     <View>
                         <Text style={{
@@ -180,21 +233,29 @@ export default function LoginScreen() {
                         }}>
                             Email
                         </Text>
-                        <TextInput
-                            style={theme.input}
-                            placeholder="Enter your email"
-                            placeholderTextColor={theme.colors.textSecondary}
-                            value={email}
-                            onChangeText={(text) => {
-                                setEmail(text);
-                                clearError();
-                            }}
-                            autoCapitalize="none"
-                            autoComplete="email"
-                            keyboardType="email-address"
-                            editable={!loading}
-                            returnKeyType="next"
-                        />
+                        <View style={{ position: 'relative' }}>
+                            <Ionicons
+                                name="mail-outline"
+                                size={18}
+                                color={theme.colors.accentPrimary}
+                                style={{ position: 'absolute', left: theme.Spacing.md, top: 17, zIndex: 1 }}
+                            />
+                            <TextInput
+                                style={[theme.input, { paddingLeft: 46 }]}
+                                placeholder="Enter your email"
+                                placeholderTextColor={theme.colors.textSecondary}
+                                value={email}
+                                onChangeText={(text) => {
+                                    setEmail(text);
+                                    clearError();
+                                }}
+                                autoCapitalize="none"
+                                autoComplete="email"
+                                keyboardType="email-address"
+                                editable={!loading}
+                                returnKeyType="next"
+                            />
+                        </View>
                     </View>
 
                     {/* Password Input */}
@@ -207,24 +268,33 @@ export default function LoginScreen() {
                         }}>
                             Password
                         </Text>
-                        <TextInput
-                            style={[
-                                theme.input,
-                                error ? { borderColor: theme.colors.error } : {}
-                            ]}
-                            placeholder="Enter your password"
-                            placeholderTextColor={theme.colors.textSecondary}
-                            value={password}
-                            onChangeText={(text) => {
-                                setPassword(text);
-                                clearError();
-                            }}
-                            secureTextEntry
-                            autoCapitalize="none"
-                            editable={!loading}
-                            returnKeyType="done"
-                            onSubmitEditing={handleLogin}
-                        />
+                        <View style={{ position: 'relative' }}>
+                            <Ionicons
+                                name="lock-closed-outline"
+                                size={18}
+                                color={theme.colors.accentPrimary}
+                                style={{ position: 'absolute', left: theme.Spacing.md, top: 17, zIndex: 1 }}
+                            />
+                            <TextInput
+                                style={[
+                                    theme.input,
+                                    { paddingLeft: 46 },
+                                    error ? { borderColor: theme.colors.error } : {}
+                                ]}
+                                placeholder="Enter your password"
+                                placeholderTextColor={theme.colors.textSecondary}
+                                value={password}
+                                onChangeText={(text) => {
+                                    setPassword(text);
+                                    clearError();
+                                }}
+                                secureTextEntry
+                                autoCapitalize="none"
+                                editable={!loading}
+                                returnKeyType="done"
+                                onSubmitEditing={handleLogin}
+                            />
+                        </View>
                     </View>
 
                     <Link href="/(auth)/forgot-password" asChild>
@@ -244,7 +314,7 @@ export default function LoginScreen() {
                         style={[
                             theme.button,
                             loading && { opacity: 0.7 },
-                            { marginTop: theme.Spacing.md }
+                            { marginTop: theme.Spacing.md, minHeight: 54 }
                         ]}
                         onPress={handleLogin}
                         disabled={loading}
@@ -261,7 +331,7 @@ export default function LoginScreen() {
                     {/* Sign Up Link */}
                     <View style={[theme.row, {
                         justifyContent: 'center',
-                        marginTop: theme.Spacing.xl
+                        marginTop: theme.Spacing.md
                     }]}>
                         <Text style={{
                             color: theme.colors.textSecondary,
@@ -285,7 +355,7 @@ export default function LoginScreen() {
 
                 {/* App Info Footer */}
                 <View style={{
-                    marginTop: theme.Spacing.xxl,
+                    marginTop: theme.Spacing.xl,
                     alignItems: 'center'
                 }}>
                     <Text style={{
