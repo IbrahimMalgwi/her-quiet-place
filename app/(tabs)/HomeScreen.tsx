@@ -14,7 +14,7 @@ import {
     Platform,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
@@ -566,7 +566,7 @@ export default function HomeScreen() {
     };
 
     const renderFeatureTile = (
-        icon: React.ComponentProps<typeof Ionicons>['name'],
+        icon: React.ComponentProps<typeof Ionicons>['name'] | 'hands-pray',
         title: string,
         subtitle: string,
         onPress: () => void,
@@ -591,7 +591,11 @@ export default function HomeScreen() {
                 elevation: 2,
             }}
         >
-            <Ionicons name={icon} size={46} color={theme.colors.accentPrimary} />
+            {icon === 'hands-pray' ? (
+                <MaterialCommunityIcons name="hands-pray" size={36} color={theme.colors.accentPrimary} />
+            ) : (
+                <Ionicons name={icon} size={40} color={theme.colors.accentPrimary} />
+            )}
             <Text style={{
                 color: theme.colors.text,
                 fontSize: 19,
@@ -1009,10 +1013,10 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: theme.Spacing.md }}>
-                    {renderFeatureTile('hand-left-outline', 'Prayer Room', 'Pray & be prayed for', () => router.push('/(tabs)/PrayerRoomScreen'))}
-                    {renderFeatureTile('journal-outline', 'Journal', 'Write & reflect', () => router.push('/(tabs)/JournalScreen'))}
+                    {renderFeatureTile('hands-pray', 'Prayer Room', 'Pray & be prayed for', () => router.push('/(tabs)/PrayerRoomScreen'))}
+                    {renderFeatureTile('book-outline', 'Journal', 'Write & reflect', () => router.push('/(tabs)/JournalScreen'))}
                     {renderFeatureTile('headset-outline', 'Audio Comfort', 'Listen & be encouraged', () => router.push('/(tabs)/AudioRoomScreen'))}
-                    {renderFeatureTile('sunny-outline', 'Daily Strength', 'Verse, quotes & more', () => setExpandedContent(dailyItems.quote ? 'quote' : dailyItems.prayer ? 'prayer' : 'affirmation'))}
+                    {renderFeatureTile('home-outline', 'Daily Strength', 'Verse, quotes & more', () => setExpandedContent(dailyItems.quote ? 'quote' : dailyItems.prayer ? 'prayer' : 'affirmation'))}
                 </View>
 
                 <View style={{ marginTop: theme.Spacing.lg }}>
