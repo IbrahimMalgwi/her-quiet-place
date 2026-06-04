@@ -20,6 +20,7 @@ import { useTheme } from "../../constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
 import { streakService, UserStreak } from "../../services/streakService";
 import { router } from "expo-router";
+import { profileService } from "../../services/profileService";
 
 interface DailyItem {
     id: string;
@@ -65,11 +66,27 @@ export default function HomeScreen() {
     });
     const [loading, setLoading] = useState(true);
     const [userStreak, setUserStreak] = useState<UserStreak | null>(null);
+    const [profileName, setProfileName] = useState<string | null>(null);
     const [todaysAffirmation, setTodaysAffirmation] = useState<DailyAffirmation | null>(null);
     const [expandedContent, setExpandedContent] = useState<'quote' | 'verse' | 'prayer' | 'affirmation' | null>(null);
 
     // Animation refs
     const streakPulse = useRef(new Animated.Value(1)).current;
+
+    const fetchUserProfile = useCallback(async () => {
+        if (!user) {
+            setProfileName(null);
+            return;
+        }
+
+        try {
+            const profile = await profileService.getProfile(user.id);
+            setProfileName(profile?.full_name?.trim() || null);
+        } catch (error) {
+            console.error('Error fetching profile for greeting:', error);
+            setProfileName(null);
+        }
+    }, [user]);
 
     // Reset data when user logs out
     useFocusEffect(
@@ -82,10 +99,13 @@ export default function HomeScreen() {
                     prayer: null
                 });
                 setUserStreak(null);
+                setProfileName(null);
                 setTodaysAffirmation(null);
                 setLoading(false);
+            } else {
+                void fetchUserProfile();
             }
-        }, [user])
+        }, [fetchUserProfile, user])
     );
 
     // Fetch all data on component mount and when user changes
@@ -114,7 +134,8 @@ export default function HomeScreen() {
             await Promise.all([
                 fetchDailyItems(),
                 fetchTodaysAffirmation(),
-                fetchUserStreak()
+                fetchUserStreak(),
+                fetchUserProfile(),
             ]);
 
             console.log('All data fetched successfully');
@@ -594,15 +615,55 @@ export default function HomeScreen() {
     const getGreetingName = () => {
         const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name;
         const emailName = user?.email?.split('@')[0];
-        const rawName = metadataName || emailName || 'Beautiful';
+        const rawName = profileName || metadataName || emailName || 'Beautiful';
         return String(rawName).split(/[ ._-]/)[0] || 'Beautiful';
     };
 
-    const getCompletedStreakDays = () => Math.min(userStreak?.current_streak || 0, 7);
+    const getStartOfLocalDay = (date: Date) =>
+        new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const addDays = (date: Date, days: number) => {
+        const nextDate = new Date(date);
+        nextDate.setDate(nextDate.getDate() + days);
+        return getStartOfLocalDay(nextDate);
+    };
+
+    const parseStreakDate = (dateString?: string) => {
+        if (!dateString) return getStartOfLocalDay(new Date());
+
+        const [year, month, day] = dateString.split('-').map(Number);
+        if (!year || !month || !day) return getStartOfLocalDay(new Date());
+
+        return new Date(year, month - 1, day);
+    };
+
+    const getRecentStreakDays = () => {
+        const today = getStartOfLocalDay(new Date());
+        const currentStreak = userStreak?.current_streak || 0;
+        const lastVisit = currentStreak > 0 ? parseStreakDate(userStreak?.last_visit_date) : null;
+        const streakStart = lastVisit ? addDays(lastVisit, -(currentStreak - 1)) : null;
+
+        return Array.from({ length: 7 }, (_, index) => {
+            const date = addDays(today, index - 6);
+            const isComplete = Boolean(
+                streakStart &&
+                lastVisit &&
+                date.getTime() >= streakStart.getTime() &&
+                date.getTime() <= lastVisit.getTime()
+            );
+
+            return {
+                key: date.toISOString(),
+                label: date.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0),
+                isComplete,
+                isToday: date.getTime() === today.getTime(),
+            };
+        });
+    };
 
     const renderStreakCard = () => {
-        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-        const completed = getCompletedStreakDays();
+        const days = getRecentStreakDays();
+        const currentStreak = userStreak?.current_streak || 0;
 
         return (
             <View style={{
@@ -620,9 +681,16 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={{ color: theme.colors.text, fontSize: 19, fontWeight: '800' }}>Your Streak</Text>
                     <Text style={{ color: theme.colors.accentDeep, fontSize: 18, fontWeight: '700' }}>
-                        {userStreak?.current_streak || 0} Days
+                        {currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}
                     </Text>
                 </View>
+                <Text style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: 12,
+                    marginTop: theme.Spacing.xs,
+                }}>
+                    Longest: {userStreak?.longest_streak || 0} days | Total visits: {userStreak?.total_visits || 0}
+                </Text>
 
                 <View style={{
                     flexDirection: 'row',
@@ -630,30 +698,32 @@ export default function HomeScreen() {
                     justifyContent: 'space-between',
                     marginTop: theme.Spacing.lg,
                 }}>
-                    {days.map((day, index) => {
-                        const isComplete = index < completed;
-
+                    {days.map(day => {
                         return (
-                            <View key={`${day}-${index}`} style={{ alignItems: 'center', flex: 1 }}>
+                            <View key={day.key} style={{ alignItems: 'center', flex: 1 }}>
                                 <View style={{
                                     width: 34,
                                     height: 34,
                                     borderRadius: 17,
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    backgroundColor: isComplete ? theme.colors.accentPrimary : theme.colors.backgroundCard,
+                                    backgroundColor: day.isComplete ? theme.colors.accentPrimary : theme.colors.backgroundCard,
                                     borderWidth: 2,
-                                    borderColor: isComplete ? theme.colors.accentPrimary : theme.colors.accentSecondary,
+                                    borderColor: day.isToday
+                                        ? theme.colors.accentDeep
+                                        : day.isComplete
+                                            ? theme.colors.accentPrimary
+                                            : theme.colors.accentSecondary,
                                 }}>
-                                    {isComplete && <Ionicons name="checkmark" size={20} color={theme.colors.white} />}
+                                    {day.isComplete && <Ionicons name="checkmark" size={20} color={theme.colors.white} />}
                                 </View>
                                 <Text style={{
-                                    color: theme.colors.textSecondary,
+                                    color: day.isToday ? theme.colors.accentDeep : theme.colors.textSecondary,
                                     fontSize: 13,
                                     fontWeight: '700',
                                     marginTop: theme.Spacing.sm,
                                 }}>
-                                    {day}
+                                    {day.label}
                                 </Text>
                             </View>
                         );
