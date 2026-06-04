@@ -619,6 +619,14 @@ export default function HomeScreen() {
         return String(rawName).split(/[ ._-]/)[0] || 'Beautiful';
     };
 
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
     const getStartOfLocalDay = (date: Date) =>
         new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -940,14 +948,14 @@ export default function HomeScreen() {
                         fontWeight: '500',
                         letterSpacing: -0.4,
                     }}>
-                        Good Morning,
+                        {getTimeBasedGreeting()},
                     </Text>
                     <Text style={{
                         color: theme.colors.accentPrimary,
-                        fontSize: 56,
+                        fontSize: 44,
                         fontWeight: '400',
                         fontStyle: 'italic',
-                        lineHeight: 64,
+                        lineHeight: 52,
                         fontFamily: Platform.select({ ios: 'Snell Roundhand', web: 'cursive' }),
                     }}>
                         {getGreetingName()}

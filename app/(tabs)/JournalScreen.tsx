@@ -519,7 +519,7 @@ export default function JournalScreen() {
                 onPress={() => openEditor()}
                 style={[{
                     position: 'absolute',
-                    bottom: theme.Spacing.xl,
+                    bottom: theme.Spacing.xl + 86,
                     right: theme.Spacing.xl,
                     width: 56,
                     height: 56,
@@ -540,7 +540,13 @@ export default function JournalScreen() {
 
             {/* Journal Entries List */}
             {filteredEntries.length === 0 ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.Spacing.xl }}>
+                <View style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: theme.Spacing.xl,
+                    paddingBottom: 140,
+                }}>
                     <Ionicons
                         name={searchQuery || selectedMoodFilter !== 'all' ? "search-outline" : "journal-outline"}
                         size={64}
@@ -588,7 +594,7 @@ export default function JournalScreen() {
                             tintColor={theme.colors.accentPrimary}
                         />
                     }
-                    contentContainerStyle={{ padding: theme.Spacing.md, paddingBottom: 100 }}
+                    contentContainerStyle={{ padding: theme.Spacing.md, paddingBottom: 156 }}
                     showsVerticalScrollIndicator={false}
                 >
                     {filteredEntries.map((entry, index) => (
