@@ -1,10 +1,9 @@
 // app/(tabs)/_layout.tsx
 import React from 'react';
-import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 
 import { useTheme } from '../../constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function TabsLayout() {
     const theme = useTheme();
@@ -65,10 +64,10 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="AudioRoomScreen"
                 options={{
-                    title: 'Explore',
+                    title: 'Audio',
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons
-                            name={focused ? "compass" : "compass-outline"}
+                            name={focused ? "headset" : "headset-outline"}
                             size={size}
                             color={color}
                         />
@@ -78,33 +77,13 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="PrayerRoomScreen"
                 options={{
-                    title: '',
-                    tabBarItemStyle: {
-                        paddingTop: 0,
-                    },
-                    tabBarIcon: ({ focused }) => (
-                        <View style={{
-                            width: 74,
-                            height: 74,
-                            borderRadius: 37,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: theme.colors.accentPrimary,
-                            borderWidth: 5,
-                            borderColor: theme.colors.white,
-                            marginTop: -34,
-                            shadowColor: theme.colors.accentDeep,
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.22,
-                            shadowRadius: 12,
-                            elevation: 10,
-                        }}>
-                            <Ionicons
-                                name={focused ? "heart" : "heart"}
-                                size={34}
-                                color={theme.colors.white}
-                            />
-                        </View>
+                    title: 'Prayer',
+                    tabBarIcon: ({ color, size }) => (
+                        <MaterialCommunityIcons
+                            name="hands-pray"
+                            size={size}
+                            color={color}
+                        />
                     ),
                 }}
             />

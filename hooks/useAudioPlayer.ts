@@ -120,6 +120,8 @@ export const useAudioPlayer = () => {
                     if (player.isLoaded) {
                         await player.seekTo(progress.progress_seconds);
                     }
+                } else {
+                    await audioService.saveProgress(audio.id, 0, user.id, false);
                 }
             }
 

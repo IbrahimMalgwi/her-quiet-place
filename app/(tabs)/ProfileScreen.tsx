@@ -25,6 +25,14 @@ type ProfileStat = {
     icon: string;
 };
 
+type RecentAudioActivity = {
+    audio_id: string;
+    title: string;
+    progress_seconds: number;
+    completed: boolean;
+    updated_at: string;
+};
+
 type TabType = 'stats' | 'settings';
 const ACCENT_COLORS = ['#C96578', '#8B2E3A', '#F6B7C1', '#C98A4B', '#A85A67'];
 
@@ -41,16 +49,19 @@ export default function ProfileScreen() {
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [statsLoading, setStatsLoading] = useState(true);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [recentAudioActivity, setRecentAudioActivity] = useState<RecentAudioActivity[]>([]);
 
     const loadProfileStats = useCallback(async () => {
         if (!user) {
             setStats([]);
+            setRecentAudioActivity([]);
             return;
         }
 
         try {
             const [
                 { data: progress, error: progressError },
+                { data: recentProgress, error: recentProgressError },
                 { count: audioFavoritesCount, error: audioFavoritesError },
                 { count: dailyFavoritesCount, error: dailyFavoritesError },
                 { count: prayerFavoritesCount, error: prayerFavoritesError },
@@ -59,6 +70,12 @@ export default function ProfileScreen() {
                     .from('user_audio_progress')
                     .select('progress_seconds, completed')
                     .eq('user_id', user.id),
+                supabase
+                    .from('user_audio_progress')
+                    .select('audio_id, progress_seconds, completed, updated_at')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(5),
                 supabase
                     .from('user_audio_favorites')
                     .select('*', { count: 'exact', head: true })
@@ -74,6 +91,7 @@ export default function ProfileScreen() {
             ]);
 
             if (progressError) throw progressError;
+            if (recentProgressError) throw recentProgressError;
             if (audioFavoritesError) throw audioFavoritesError;
             if (dailyFavoritesError) throw dailyFavoritesError;
             if (prayerFavoritesError) throw prayerFavoritesError;
@@ -93,9 +111,32 @@ export default function ProfileScreen() {
                 { label: 'Minutes', value: minutes, icon: 'time' },
                 { label: 'Sessions', value: sessions.length, icon: 'play' },
             ]);
+
+            const recentRows = recentProgress || [];
+            const audioIds = recentRows.map(item => item.audio_id);
+            const titleByAudioId = new Map<string, string>();
+
+            if (audioIds.length > 0) {
+                const { data: audioTitles, error: audioTitlesError } = await supabase
+                    .from('audio_comforts')
+                    .select('id, title')
+                    .in('id', audioIds);
+
+                if (audioTitlesError) throw audioTitlesError;
+                (audioTitles || []).forEach(audio => titleByAudioId.set(audio.id, audio.title));
+            }
+
+            setRecentAudioActivity(recentRows.map(item => ({
+                audio_id: item.audio_id,
+                title: titleByAudioId.get(item.audio_id) || 'Audio comfort',
+                progress_seconds: item.progress_seconds,
+                completed: item.completed,
+                updated_at: item.updated_at,
+            })));
         } catch (error) {
             console.error('Error loading stats:', error);
             setStats([]);
+            setRecentAudioActivity([]);
         }
     }, [user]);
 
@@ -247,6 +288,31 @@ export default function ProfileScreen() {
         return email ? email.split('@')[0] : 'User';
     };
 
+    const formatAudioProgress = (seconds: number) => {
+        const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+        const minutes = Math.floor(safeSeconds / 60);
+        const remainingSeconds = Math.floor(safeSeconds % 60);
+
+        if (minutes === 0) return `${remainingSeconds}s`;
+        return `${minutes}m ${remainingSeconds}s`;
+    };
+
+    const formatRelativeTime = (dateString: string) => {
+        const updatedAt = new Date(dateString).getTime();
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - updatedAt) / 1000));
+
+        if (elapsedSeconds < 60) return 'now';
+
+        const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+        if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+
+        const elapsedHours = Math.floor(elapsedMinutes / 60);
+        if (elapsedHours < 24) return `${elapsedHours}h ago`;
+
+        const elapsedDays = Math.floor(elapsedHours / 24);
+        return `${elapsedDays}d ago`;
+    };
+
     const renderStatsTab = () => (
         <View style={{ gap: theme.Spacing.md }}>
             {/* Stats Grid */}
@@ -361,34 +427,43 @@ export default function ProfileScreen() {
                 }}>
                     Recent Activity
                 </Text>
-                <View style={{ gap: theme.Spacing.sm }}>
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.Spacing.sm
-                    }}>
-                        <Ionicons name="play-circle" size={16} color={theme.colors.success} />
-                        <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }}>
-                            Completed Morning Peace
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            2h ago
-                        </Text>
+                {statsLoading ? (
+                    <ActivityIndicator size="small" color={theme.colors.accentPrimary} />
+                ) : recentAudioActivity.length > 0 ? (
+                    <View style={{ gap: theme.Spacing.md }}>
+                        {recentAudioActivity.map(activity => (
+                            <View
+                                key={`${activity.audio_id}-${activity.updated_at}`}
+                                style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: theme.Spacing.sm,
+                                }}
+                            >
+                                <Ionicons
+                                    name={activity.completed ? 'checkmark-circle' : 'play-circle'}
+                                    size={18}
+                                    color={activity.completed ? theme.colors.success : theme.colors.accentPrimary}
+                                />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 14, color: theme.colors.text, fontWeight: '600' }} numberOfLines={1}>
+                                        {activity.completed ? 'Completed' : 'Listened to'} {activity.title}
+                                    </Text>
+                                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                                        {formatAudioProgress(activity.progress_seconds)} tracked
+                                    </Text>
+                                </View>
+                                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                                    {formatRelativeTime(activity.updated_at)}
+                                </Text>
+                            </View>
+                        ))}
                     </View>
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: theme.Spacing.sm
-                    }}>
-                        <Ionicons name="heart" size={16} color={theme.colors.accentPrimary} />
-                        <Text style={{ fontSize: 14, color: theme.colors.text, flex: 1 }}>
-                            Added to favorites
-                        </Text>
-                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                            1d ago
-                        </Text>
-                    </View>
-                </View>
+                ) : (
+                    <Text style={{ fontSize: 14, color: theme.colors.textSecondary, lineHeight: 20 }}>
+                        Audio progress will appear here after you start listening.
+                    </Text>
+                )}
             </View>
         </View>
     );

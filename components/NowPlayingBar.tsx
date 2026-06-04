@@ -47,13 +47,20 @@ export default function NowPlayingBar({ audioPlayer }: Props) {
         <View
             style={{
                 position: 'absolute',
-                bottom: 0,
+                bottom: 86,
                 left: 0,
                 right: 0,
                 backgroundColor: theme.colors.backgroundCard,
                 padding: theme.Spacing.md,
                 borderTopWidth: 1,
                 borderTopColor: theme.colors.border,
+                borderTopLeftRadius: theme.BorderRadius.xl,
+                borderTopRightRadius: theme.BorderRadius.xl,
+                shadowColor: theme.colors.accentDeep,
+                shadowOffset: { width: 0, height: -5 },
+                shadowOpacity: 0.12,
+                shadowRadius: 14,
+                elevation: 12,
             }}
         >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

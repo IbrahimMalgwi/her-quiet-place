@@ -116,13 +116,18 @@ class AudioService {
     }
 
     async saveProgress(audioId: string, progressSeconds: number, userId: string, completed: boolean = false): Promise<void> {
+        const existingProgress = await this.getProgress(audioId, userId);
+        const safeProgressSeconds = Math.floor(progressSeconds);
+        const nextProgressSeconds = Math.max(existingProgress?.progress_seconds || 0, safeProgressSeconds);
+        const nextCompleted = Boolean(existingProgress?.completed || completed);
+
         const { error } = await supabase
             .from('user_audio_progress')
             .upsert({
                 audio_id: audioId,
                 user_id: userId,
-                progress_seconds: Math.floor(progressSeconds),
-                completed,
+                progress_seconds: nextProgressSeconds,
+                completed: nextCompleted,
                 updated_at: new Date().toISOString(),
             });
 
